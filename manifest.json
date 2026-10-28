@@ -11,13 +11,14 @@
     "default_title": "Screen Share Privacy Guard",
     "default_popup": "src/popup.html"
   },
+  "options_page": "src/options.html",
   "commands": {
     "toggle-masking": {
       "suggested_key": { "default": "Alt+Shift+H" },
       "description": "Turn hiding on or off"
     },
     "blur-page": {
-      "suggested_key": { "default": "Alt+Shift+B" },
+      "suggested_key": { "default": "Alt+Shift+K" },
       "description": "Blur the whole page"
     }
   },

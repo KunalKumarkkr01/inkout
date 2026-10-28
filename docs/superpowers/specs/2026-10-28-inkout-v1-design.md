@@ -65,7 +65,7 @@ The user's moment: sharing a screen with Gmail or a similar app open, and an ema
   3. **Sites:** "On every site" (default) or "Only on sites I choose", a "Never hide on" list, and "Pause on this site" from the popup (decision 4).
   4. **Tab titles:** sensitive values in the page title are hidden too. Gmail puts the user's address there. On by default.
   5. **Per-tab count:** the popup shows how many items are hidden on the current tab, by type. The toolbar icon shows a red OFF badge when protection is off.
-  6. **Keyboard shortcuts:** Alt+Shift+H toggles protection; Alt+Shift+B blurs the whole page (decision 3).
+  6. **Keyboard shortcuts:** Alt+Shift+H toggles protection; Alt+Shift+K blurs the whole page (decision 3; Chrome keeps Alt+Shift+B for its bookmarks bar).
   7. **Settings page**, as in the mockup, and a **welcome page** that opens once on install.
   8. **Dark mode** for the popup, settings and welcome pages, following the system setting.
   9. **Presenter mode** (decision 3).
@@ -92,7 +92,7 @@ The user's moment: sharing a screen with Gmail or a similar app open, and an ema
    - **Two settings**, with the mockup's defaults:
      - "Turn on when I start sharing" (on) switches protection on if it was off.
      - "Turn off when sharing ends" (off) only reverts what the automatic switch-on did, never a manual choice.
-   - **Blur the whole page:** shortcut Alt+Shift+B, on the current tab, for surprises. Press it again to undo. It must cover the page's own content, including frames, and must be undone when the tab navigates.
+   - **Blur the whole page:** shortcut Alt+Shift+K (Alt+Shift+B is taken by Chrome), on the current tab, for surprises. Press it again to undo. It must cover the page's own content, including frames, and must be undone when the tab navigates.
    - **In Popup A:** a slim banner at the top while a share is active ("You are sharing your screen · Google Meet"), and a "Blur the whole page" button below the site card. Both appear only when relevant, and the popup still fits in 600 px.
    - **No new permissions:** the page-world script (`src/page-hooks.js`) reports share start and end to the content script, which tells the service worker.
 4. **"Pause on this site" is temporary and always visible.**

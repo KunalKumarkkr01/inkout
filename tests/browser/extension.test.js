@@ -1016,5 +1016,207 @@ describe('extension in a real browser', { skip: skipReason }, () => {
       await chromePage.tab.close();
       await openPopupFor(meeting.id);
     });
+
+    test('the settings button opens the settings page', async () => {
+      await chrome.send('Target.setDiscoverTargets', { discover: true });
+      const opened = chrome.waitFor('Target.targetCreated', (message) =>
+        message.params.targetInfo.url.endsWith('/src/options.html')
+      );
+      await popup.evaluate(`document.getElementById('settings').click()`);
+      const { params } = await opened;
+      await chrome.send('Target.closeTarget', { targetId: params.targetInfo.targetId });
+      await chrome.send('Target.setDiscoverTargets', { discover: false });
+    });
+  });
+
+  describe('settings page', () => {
+    const DESKTOP_WIDTH = 1280;
+    const PHONE_WIDTH = 375;
+    let fixture;
+    let options;
+
+    /**
+     * Summary: the settings as stored right now.
+     * Returns: Promise of the stored settings object.
+     */
+    function stored() {
+      return options.evaluate(`chrome.storage.sync.get('privacyGuardSettings').then((data) => data.privacyGuardSettings)`);
+    }
+
+    /**
+     * Summary: clicks an element on the settings page and waits for the change to reach open tabs.
+     * Parameters: selector — CSS selector of the control.
+     */
+    async function click(selector) {
+      await options.evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
+      await options.settle(300);
+    }
+
+    /**
+     * Summary: types into a text box on the settings page and presses its Add button.
+     * Parameters: inputSelector; buttonSelector; text.
+     */
+    async function addEntry(inputSelector, buttonSelector, text) {
+      await options.evaluate(`document.querySelector(${JSON.stringify(inputSelector)}).value = ${JSON.stringify(text)}`);
+      await click(buttonSelector);
+    }
+
+    const text = (selector) => options.evaluate(`document.querySelector(${JSON.stringify(selector)}).textContent.trim()`);
+
+    before(async () => {
+      fixture = await openTrackedTab(`${server.origin}/types.html`);
+      await setSettings(DEFAULT_SETTINGS, fixture.tab);
+      options = await Tab.open(chrome, EXTENSION_NAME);
+      await options.goto(`chrome-extension://${extensionId}/src/options.html`);
+    });
+    after(async () => {
+      await setSettings(DEFAULT_SETTINGS, fixture.tab);
+      await options.close();
+      await fixture.tab.close();
+    });
+
+    test('shows the current settings', async () => {
+      assert.deepEqual(
+        await options.evaluate(`({
+          master: document.getElementById('master').checked,
+          types: Object.fromEntries([...document.querySelectorAll('input[data-type]')].map((box) => [box.dataset.type, box.checked])),
+          style: document.querySelector('input[name="style"]:checked').value,
+          strength: document.querySelector('input[name="strength"]:checked').value,
+          scope: document.querySelector('input[name="scope"]:checked').value,
+          hideTitles: document.getElementById('hide-titles').checked,
+          autoOn: document.getElementById('auto-on').checked,
+          autoOff: document.getElementById('auto-off').checked,
+        })`),
+        {
+          master: true,
+          types: { email: true, apiKey: true, iban: true, card: true, phone: true, ip: false, custom: true },
+          style: 'blur',
+          strength: 'medium',
+          scope: 'all',
+          hideTitles: true,
+          autoOn: true,
+          autoOff: false,
+        }
+      );
+    });
+
+    test('switching off a type saves it and shows that type on open pages', async () => {
+      await click('input[data-type="email"]');
+      assert.equal((await stored()).types.email, false);
+      assert.equal((await fixture.tab.hiddenText()).email, undefined);
+      await click('input[data-type="email"]');
+      assert.deepEqual((await fixture.tab.hiddenText()).email, ['priya.sharma@example.com']);
+    });
+
+    test('the main switch turns protection off', async () => {
+      await click('#master');
+      assert.equal((await stored()).enabled, false);
+      assert.deepEqual(await fixture.tab.hiddenText(), {});
+      await click('#master');
+      assert.equal((await stored()).enabled, true);
+    });
+
+    test('a custom word is added, hidden on pages, and can be removed', async () => {
+      await addEntry('#custom-input', '#custom-add', 'Project Falcon');
+      assert.deepEqual((await stored()).customWords, ['Project Falcon']);
+      assert.equal(await text('#custom-list'), 'Project Falcon');
+      assert.deepEqual((await fixture.tab.hiddenText()).custom, ['Project Falcon']);
+      await click('#custom-list button');
+      assert.deepEqual((await stored()).customWords, []);
+    });
+
+    test('an invalid pattern is refused with a message', async () => {
+      await click('#custom-as-patterns');
+      await addEntry('#custom-input', '#custom-add', '(unclosed');
+      assert.equal(await text('#custom-error'), "This isn't a valid pattern");
+      assert.deepEqual((await stored()).customWords, []);
+    });
+
+    test('a pattern that could freeze pages is refused', async () => {
+      const PATTERN_CHECK_WAIT_MS = 1500; // the page gives up on a pattern after a second
+      await addEntry('#custom-input', '#custom-add', '(a+)+$');
+      await options.settle(PATTERN_CHECK_WAIT_MS);
+      assert.equal(await text('#custom-error'), 'This pattern is too slow to use');
+      assert.deepEqual((await stored()).customWords, []);
+    });
+
+    test('a working pattern is saved', async () => {
+      await addEntry('#custom-input', '#custom-add', 'Falcon\\b');
+      assert.equal(await text('#custom-error'), '');
+      assert.deepEqual((await stored()).customWords, ['Falcon\\b']);
+      await click('#custom-list button');
+      await click('#custom-as-patterns');
+    });
+
+    test('a never-hide site is cleaned up when added, and the page follows it', async () => {
+      await addEntry('#site-input', '#site-add', 'https://www.Example.com/x');
+      assert.equal(await text('#never-list'), 'example.com');
+      await addEntry('#site-input', '#site-add', new URL(server.origin).host);
+      assert.deepEqual(await fixture.tab.hiddenText(), {});
+      assert.deepEqual((await stored()).neverHideSites, ['example.com', new URL(server.origin).host]);
+      await click('#never-list li:last-child button');
+      assert.ok((await fixture.tab.hiddenText()).email);
+      await click('#never-list li button');
+      assert.deepEqual((await stored()).neverHideSites, []);
+    });
+
+    test('something that is not a site is refused with a message', async () => {
+      await addEntry('#site-input', '#site-add', 'not a site!');
+      assert.equal(await text('#site-error'), 'Enter a site like example.com');
+      assert.deepEqual((await stored()).neverHideSites, []);
+    });
+
+    test('"only on sites I choose" shows its own list', async () => {
+      await click('input[name="scope"][value="chosen"]');
+      assert.equal((await stored()).siteMode, 'chosen');
+      assert.equal(await options.evaluate(`document.getElementById('chosen-section').hidden`), false);
+      assert.deepEqual(await fixture.tab.hiddenText(), {});
+      await addEntry('#chosen-input', '#chosen-add', new URL(server.origin).host);
+      assert.ok((await fixture.tab.hiddenText()).email);
+      await click('#chosen-list li button');
+      await click('input[name="scope"][value="all"]');
+      assert.equal(await options.evaluate(`document.getElementById('chosen-section').hidden`), true);
+    });
+
+    test('the hide style and strength reach open pages', async () => {
+      await click('input[name="style"][value="bar"]');
+      assert.equal(await fixture.tab.evaluate(`document.documentElement.dataset.privacyGuardStyle`), 'bar');
+      await click('input[name="style"][value="blur"]');
+      await click('input[name="strength"][value="strong"]');
+      assert.equal(await fixture.tab.evaluate(`document.documentElement.dataset.privacyGuardStrength`), 'strong');
+      await click('input[name="strength"][value="medium"]');
+    });
+
+    test('tab titles and presenter mode switches are saved', async () => {
+      await click('#hide-titles');
+      await click('#auto-on');
+      await click('#auto-off');
+      const settings = await stored();
+      assert.deepEqual([settings.hideTitles, settings.autoOnWhenSharing, settings.autoOffWhenSharingEnds], [false, false, true]);
+      await click('#hide-titles');
+      await click('#auto-on');
+      await click('#auto-off');
+    });
+
+    test("both shortcuts are given to Inkout (none clashes with Chrome's own)", async () => {
+      assert.equal(await text('#key-toggle-masking'), 'Alt+Shift+H');
+      assert.equal(await text('#key-blur-page'), 'Alt+Shift+K');
+    });
+
+    test('links to the website, the privacy policy and support', async () => {
+      const links = await options.evaluate(`[...document.querySelectorAll('a[href]')].map((link) => link.href)`);
+      assert.ok(links.includes('https://kunalkumarkkr01.github.io/inkout/'));
+      assert.ok(links.includes('https://kunalkumarkkr01.github.io/inkout/privacy.html'));
+      assert.ok(links.includes('mailto:kunaljmit036@gmail.com'));
+    });
+
+    test('fits a desktop window and a phone-width window without sideways scrolling', async () => {
+      for (const width of [DESKTOP_WIDTH, PHONE_WIDTH]) {
+        await chrome.send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: false }, options.sessionId);
+        await options.settle(200);
+        assert.ok((await options.evaluate('document.documentElement.scrollWidth')) <= width, `scrolls sideways at ${width}px`);
+      }
+      await chrome.send('Emulation.clearDeviceMetricsOverride', {}, options.sessionId);
+    });
   });
 });

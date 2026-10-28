@@ -517,7 +517,7 @@
 
   /**
    * Summary: blurs this frame's whole page, or removes that blur; works whatever the settings are.
-   * Usage: Alt+Shift+B or the popup's "Blur the whole page" button, via the service worker.
+   * Usage: Alt+Shift+K or the popup's "Blur the whole page" button, via the service worker.
    */
   function toggleWholePageBlur() {
     const html = document.documentElement;

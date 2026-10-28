@@ -113,7 +113,7 @@ html[data-privacy-guard-style='bar'] [data-privacy-guard-masked]::selection {
   background-color: #0F1B2D !important;
 }
 
-/* "Blur the whole page" (Alt+Shift+B): for surprises while sharing, whatever the other settings. */
+/* "Blur the whole page" (Alt+Shift+K): for surprises while sharing, whatever the other settings. */
 html[data-privacy-guard-whole-page] body {
   filter: blur(14px) !important;
 }
