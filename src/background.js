@@ -7,6 +7,7 @@ const BLUR_PAGE_COMMAND = 'blur-page';
 const TABS_KEY = 'tabs';
 const PRESENTER_KEY = 'presenter';
 const WELCOME_PAGE = 'src/welcome.html';
+const TOP_FRAME_ID = 0;
 const NO_SHARING = Object.freeze({ active: false, label: '' });
 const TabState = InkoutTabState;
 const Presenter = InkoutPresenter;
@@ -76,14 +77,14 @@ async function handleShareStarted(tabId, host) {
     if (next.settingsPatch) await PrivacyGuardSettings.save({ ...settings, ...next.settingsPatch });
     return next.session;
   });
-  const before = await loadTabs();
   const tabs = await updateTabs(TabState.clearAllPauses);
   const settings = await PrivacyGuardSettings.load();
-  const wasPaused = Object.keys(before).filter((id) => before[id].paused).map(Number);
+  // Every known tab is told, not only those recorded as paused: a page can hold a pause the
+  // worker no longer knows about (for example one kept in the back/forward cache).
   await Promise.all(
-    wasPaused.map(async (id) => {
-      await updateTabBadge(id, settings.enabled, tabs);
-      await chrome.tabs.sendMessage(id, { type: 'pauseChanged', paused: false }).catch(() => {});
+    Object.keys(tabs).map(async (id) => {
+      await updateTabBadge(Number(id), settings.enabled, tabs);
+      await chrome.tabs.sendMessage(Number(id), { type: 'pauseChanged', paused: false }).catch(() => {});
     })
   );
 }
@@ -148,6 +149,16 @@ async function updateAllBadges(settings) {
 }
 
 /**
+ * Summary: whether a message came from the page shown in the tab itself, not from a frame inside it.
+ * Parameters: sender — Chrome's sender info.
+ * Returns: true for the tab's top-level page. Chrome's frameType is used where available, because a
+ *          prerendered page that is then shown doesn't have frame id 0.
+ */
+function isTopFrame(sender) {
+  return sender.frameType ? sender.frameType === 'outermost_frame' : sender.frameId === TOP_FRAME_ID;
+}
+
+/**
  * Summary: answers a message from a content script or an extension page.
  * Parameters: message — { type, ... }; sender — Chrome's sender info.
  * Returns: Promise of the reply, or undefined for messages that need none.
@@ -157,7 +168,8 @@ async function handleMessage(message, sender) {
   switch (message.type) {
     case 'frameHello': {
       const tabId = sender.tab.id;
-      const tabs = await updateTabs((all) => TabState.recordFrame(all, tabId, sender.frameId, message.host));
+      const frameId = isTopFrame(sender) ? TOP_FRAME_ID : sender.frameId;
+      const tabs = await updateTabs((all) => TabState.recordFrame(all, tabId, frameId, message.host));
       await updateTabBadge(tabId, settings.enabled, tabs);
       return { paused: TabState.tabSummary(tabs, tabId).paused };
     }

@@ -381,7 +381,8 @@
    * Usage: called after anything that can change what is hidden; the popup shows the totals.
    */
   function scheduleCountReport() {
-    if (countTimer !== null) return;
+    // A prerendered page isn't on screen yet; it reports once it is shown (see sayHello).
+    if (countTimer !== null || document.prerendering) return;
     countTimer = setTimeout(() => {
       countTimer = null;
       const counts = countHidden();
@@ -574,9 +575,28 @@
   Settings.load().then(applySettings);
   Settings.onChange(applySettings);
   chrome.runtime.onMessage.addListener(handleWorkerMessage);
-  // Tells the service worker this frame loaded; a tab paused on this site stays paused after a reload.
-  chrome.runtime
-    .sendMessage({ type: 'frameHello', host: topHost() })
-    .then((reply) => applyPause(Boolean(reply?.paused)))
-    .catch(() => {});
+
+  /**
+   * Summary: tells the service worker this page is on screen in the tab, and takes on the tab's pause.
+   * Usage: when the page first shows, when a prerendered page is shown, and when the Back button brings
+   *        the page back from Chrome's back/forward cache (its script doesn't run again then, and a pause
+   *        it remembers may have ended while it was away).
+   */
+  function sayHello() {
+    lastReportedCounts = '';
+    scheduleCountReport();
+    chrome.runtime
+      .sendMessage({ type: 'frameHello', host: topHost() })
+      .then((reply) => applyPause(Boolean(reply?.paused)))
+      .catch(() => {});
+  }
+
+  if (document.prerendering) {
+    document.addEventListener('prerenderingchange', sayHello, { once: true });
+  } else {
+    sayHello();
+  }
+  window.addEventListener('pageshow', (event) => {
+    if (event.persisted) sayHello();
+  });
 })();

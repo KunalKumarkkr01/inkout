@@ -708,6 +708,21 @@ describe('extension in a real browser', { skip: skipReason }, () => {
       assert.deepEqual(await first.tab.hiddenText(), {});
     });
 
+    test('a paused page brought back with the Back button, after leaving the site, is protected again', async () => {
+      const BACK_RESTORE_WAIT_MS = 1500;
+      await first.tab.evaluate(`addEventListener('pageshow', (event) => { window.restoredFromCache = event.persisted; })`);
+      await first.tab.goto(`${server.crossSiteOrigin}/basic.html`);
+      assert.equal((await sendMessage({ type: 'getTabState', tabId: first.id })).paused, false);
+      const { currentIndex, entries } = await chrome.send('Page.getNavigationHistory', {}, first.tab.sessionId);
+      await chrome.send('Page.navigateToHistoryEntry', { entryId: entries[currentIndex - 1].id }, first.tab.sessionId);
+      await first.tab.settle(BACK_RESTORE_WAIT_MS);
+      assert.equal(await first.tab.evaluate('window.restoredFromCache'), true, 'Chrome should restore the page from its back/forward cache');
+      assert.ok((await first.tab.hiddenText()).email.length > 0);
+      assert.equal(await badgeText(first.id), '');
+      await sendMessage({ type: 'setPaused', tabId: first.id, paused: true });
+      await first.tab.settle(300);
+    });
+
     test('resuming hides again and clears the badge', async () => {
       await sendMessage({ type: 'setPaused', tabId: first.id, paused: false });
       await first.tab.settle(300);
