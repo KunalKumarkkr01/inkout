@@ -79,6 +79,14 @@ npm run render -- icons   # icons/*.png from the logo
 npm run render -- store   # store/*.png and site/images/*.png from the real pages
 ```
 
+### Release
+
+```bash
+npm run package
+```
+
+This writes `dist/inkout-<version>.zip` (the version comes from `manifest.json`), with `manifest.json` at the root and only `manifest.json`, `src/` and `icons/` inside. Upload that zip in the Chrome Web Store developer dashboard; the listing text and images are in `store/`.
+
 `tests/demo.html` is a manual test page. It loads the content script with an in-memory stand-in for `chrome.storage`. Serve the folder over HTTP (not `file://`) and open `/tests/demo.html`.
 
 | File | Purpose |

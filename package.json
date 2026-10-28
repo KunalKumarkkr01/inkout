@@ -6,6 +6,7 @@
   "description": "Chrome extension that hides emails, phone numbers, card numbers and API keys on web pages while you share your screen.",
   "scripts": {
     "test": "node --test",
-    "render": "node scripts/render.js"
+    "render": "node scripts/render.js",
+    "package": "node scripts/package.js"
   }
 }
