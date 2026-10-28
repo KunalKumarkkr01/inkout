@@ -42,14 +42,32 @@ function updateTabs(change) {
 }
 
 /**
+ * Summary: reads the presenter session (who is sharing right now).
+ * Returns: Promise of { shares, autoEnabled } (see presenter.js); an empty session if none or unreadable.
+ */
+async function loadPresenter() {
+  const stored = (await chrome.storage.session.get(PRESENTER_KEY))[PRESENTER_KEY];
+  return Array.isArray(stored?.shares) ? stored : Presenter.NO_SESSION;
+}
+
+/**
+ * Summary: applies a presenter decision: saves the settings change it asks for, if any.
+ * Parameters: settings — the settings the decision was made from; next — { session, settingsPatch }.
+ * Returns: Promise of the new session.
+ */
+async function applyPresenterDecision(settings, next) {
+  if (next.settingsPatch) await PrivacyGuardSettings.save({ ...settings, ...next.settingsPatch });
+  return next.session;
+}
+
+/**
  * Summary: changes the presenter session (who is sharing) and saves it, one change at a time.
  * Parameters: change — async function from (session, settings) to the new session; it may save settings.
  * Returns: Promise of the new session.
  */
 function updatePresenter(change) {
   const run = presenterQueue.then(async () => {
-    const data = await chrome.storage.session.get(PRESENTER_KEY);
-    const session = await change(data[PRESENTER_KEY] ?? Presenter.NO_SESSION, await PrivacyGuardSettings.load());
+    const session = await change(await loadPresenter(), await PrivacyGuardSettings.load());
     await chrome.storage.session.set({ [PRESENTER_KEY]: session });
     return session;
   });
@@ -62,21 +80,20 @@ function updatePresenter(change) {
  * Returns: Promise of { active, label } such as { active: true, label: 'Google Meet' }.
  */
 async function sharingState() {
-  const { sharing } = (await chrome.storage.session.get(PRESENTER_KEY))[PRESENTER_KEY] ?? Presenter.NO_SESSION;
-  return sharing ? { active: true, label: InkoutSites.meetingLabel(sharing.host) } : NO_SHARING;
+  const { shares } = await loadPresenter();
+  const latest = shares[shares.length - 1];
+  return latest ? { active: true, label: InkoutSites.meetingLabel(latest.host) } : NO_SHARING;
 }
 
 /**
- * Summary: a tab started sharing its screen: switch protection on if asked, and end every pause
+ * Summary: a frame started sharing the screen: switch protection on if asked, and end every pause
  *          so nothing left paused shows during the call.
- * Parameters: tabId; host — the sharing tab's site.
+ * Parameters: share — { tabId, frameId, host } of the sharing frame.
  */
-async function handleShareStarted(tabId, host) {
-  await updatePresenter(async (session, settings) => {
-    const next = Presenter.onShareStarted(session, settings, tabId, host);
-    if (next.settingsPatch) await PrivacyGuardSettings.save({ ...settings, ...next.settingsPatch });
-    return next.session;
-  });
+async function handleShareStarted(share) {
+  await updatePresenter((session, settings) =>
+    applyPresenterDecision(settings, Presenter.onShareStarted(session, settings, share))
+  );
   const tabs = await updateTabs(TabState.clearAllPauses);
   const settings = await PrivacyGuardSettings.load();
   // Every known tab is told, not only those recorded as paused: a page can hold a pause the
@@ -90,16 +107,24 @@ async function handleShareStarted(tabId, host) {
 }
 
 /**
- * Summary: a tab's screen share ended (or the tab closed): switch protection back off only if the
- *          share switched it on and the user asked for that.
+ * Summary: a frame says its share ended: once no share is left, switch protection back off only if a
+ *          share switched it on and the user asked for that. Only the frame that started a share can end it.
+ * Parameters: tabId; frameId — the frame reporting the end.
+ */
+async function handleShareEnded(tabId, frameId) {
+  await updatePresenter((session, settings) =>
+    applyPresenterDecision(settings, Presenter.onShareEnded(session, settings, tabId, frameId))
+  );
+}
+
+/**
+ * Summary: a tab closed or its page was replaced, so its shares are over.
  * Parameters: tabId.
  */
-async function handleShareEnded(tabId) {
-  await updatePresenter(async (session, settings) => {
-    const next = Presenter.onShareEnded(session, settings, tabId);
-    if (next.settingsPatch) await PrivacyGuardSettings.save({ ...settings, ...next.settingsPatch });
-    return next.session;
-  });
+async function handleTabGone(tabId) {
+  await updatePresenter((session, settings) =>
+    applyPresenterDecision(settings, Presenter.onTabGone(session, settings, tabId))
+  );
 }
 
 /**
@@ -169,6 +194,8 @@ async function handleMessage(message, sender) {
     case 'frameHello': {
       const tabId = sender.tab.id;
       const frameId = isTopFrame(sender) ? TOP_FRAME_ID : sender.frameId;
+      // A new page in the tab means the old page's shares are over.
+      if (frameId === TOP_FRAME_ID) await handleTabGone(tabId);
       const tabs = await updateTabs((all) => TabState.recordFrame(all, tabId, frameId, message.host));
       await updateTabBadge(tabId, settings.enabled, tabs);
       return { paused: TabState.tabSummary(tabs, tabId).paused };
@@ -185,10 +212,10 @@ async function handleMessage(message, sender) {
       return undefined;
     }
     case 'shareStarted':
-      await handleShareStarted(sender.tab.id, message.host);
+      await handleShareStarted({ tabId: sender.tab.id, frameId: sender.frameId, host: message.host });
       return undefined;
     case 'shareEnded':
-      await handleShareEnded(sender.tab.id);
+      await handleShareEnded(sender.tab.id, sender.frameId);
       return undefined;
     case 'blurPage':
       await toggleWholePageBlur(message.tabId);
@@ -210,7 +237,7 @@ chrome.runtime.onInstalled.addListener(({ reason }) => {
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   updateTabs((tabs) => TabState.forgetTab(tabs, tabId));
-  handleShareEnded(tabId);
+  handleTabGone(tabId);
 });
 
 chrome.commands.onCommand.addListener(async (command) => {

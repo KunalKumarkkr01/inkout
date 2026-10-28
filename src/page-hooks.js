@@ -42,16 +42,17 @@
 
   // A share ends when the user stops it in Chrome's own bar ("ended" fires) or when the page
   // stops the video track itself, as meeting sites' Stop buttons do ("ended" doesn't fire then).
-  const sharedTracks = new WeakSet();
+  // Sites switch what they share by starting a new share before stopping the old one, so the page
+  // counts as sharing until its last shared track ends.
+  const sharedTracks = new Set();
 
   /**
-   * Summary: announces the end of a share once, however it ended.
-   * Parameters: track — the shared video track.
+   * Summary: forgets one shared track, and announces the end of sharing once none is left.
+   * Parameters: track — a shared video track that ended or was stopped.
    */
   function endShare(track) {
-    if (!sharedTracks.has(track)) return;
-    sharedTracks.delete(track);
-    announce(document, SHARE_ENDED_EVENT);
+    if (!sharedTracks.delete(track)) return;
+    if (sharedTracks.size === 0) announce(document, SHARE_ENDED_EVENT);
   }
 
   if (typeof MediaDevices === 'function' && MediaDevices.prototype.getDisplayMedia) {
@@ -62,7 +63,7 @@
       if (track) {
         sharedTracks.add(track);
         track.addEventListener('ended', () => endShare(track), { once: true });
-        announce(document, SHARE_STARTED_EVENT);
+        if (sharedTracks.size === 1) announce(document, SHARE_STARTED_EVENT);
       }
       return stream;
     };

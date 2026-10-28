@@ -11,13 +11,18 @@
     <p id="contact">Host: priya.sharma@example.com</p>
     <script>
       // Starts and stops sharing the way meeting sites do. The test calls these with a user gesture.
-      let stream = null;
+      // Starting again before stopping is how sites switch what is shared.
+      const streams = [];
       async function startSharing() {
-        stream = await navigator.mediaDevices.getDisplayMedia({ video: true, preferCurrentTab: true });
+        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, preferCurrentTab: true });
+        streams.push(stream);
         return stream.getVideoTracks().length;
       }
+      function stopFirstShare() {
+        streams.shift().getTracks().forEach((track) => track.stop());
+      }
       function stopSharing() {
-        stream.getTracks().forEach((track) => track.stop());
+        while (streams.length > 0) stopFirstShare();
       }
     </script>
   </body>

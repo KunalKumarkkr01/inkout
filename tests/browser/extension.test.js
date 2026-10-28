@@ -846,6 +846,40 @@ describe('extension in a real browser', { skip: skipReason }, () => {
       await stopSharing();
     });
 
+    test('switching what is shared (a second share, then stopping the first) keeps protection on', async () => {
+      await setSettings({ ...DEFAULT_SETTINGS, enabled: false, autoOffWhenSharingEnds: true }, meeting.tab);
+      await startSharing();
+      await startSharing();
+      await meeting.tab.evaluate('stopFirstShare()');
+      await meeting.tab.settle(300);
+      assert.equal(await enabledNow(), true);
+      assert.equal((await sharingNow()).active, true);
+      await stopSharing();
+      assert.equal(await enabledNow(), false);
+      assert.equal((await sharingNow()).active, false);
+    });
+
+    test('another page faking the end of a share cannot switch protection off', async () => {
+      await setSettings({ ...DEFAULT_SETTINGS, enabled: false, autoOffWhenSharingEnds: true }, meeting.tab);
+      await startSharing();
+      const other = await openTrackedTab(`${server.origin}/basic.html`);
+      await other.tab.evaluate(`document.dispatchEvent(new Event('inkout:share-ended'))`);
+      await other.tab.settle(300);
+      assert.equal(await enabledNow(), true);
+      assert.equal((await sharingNow()).active, true);
+      await other.tab.close();
+      await stopSharing();
+    });
+
+    test('a sharing tab that loads a new page ends its share', async () => {
+      await setSettings(DEFAULT_SETTINGS, meeting.tab);
+      await startSharing();
+      assert.equal((await sharingNow()).active, true);
+      await meeting.tab.goto(`${server.origin}/meeting.html`);
+      await meeting.tab.settle(300);
+      assert.deepEqual(await sharingNow(), { active: false, label: '' });
+    });
+
     test('closing the tab that is sharing ends the share', async () => {
       const other = await openTrackedTab(`${server.origin}/meeting.html`);
       await startSharing(other.tab);
