@@ -1,8 +1,12 @@
 /* Blur effect: highlights can't use `filter`, so the glyphs go transparent and only a soft
    shadow remains. The radius is in em so it scales with font size and stays unreadable. */
 ::highlight(privacy-guard-email),
+::highlight(privacy-guard-apiKey),
+::highlight(privacy-guard-iban),
+::highlight(privacy-guard-card),
 ::highlight(privacy-guard-phone),
-::highlight(privacy-guard-card) {
+::highlight(privacy-guard-ip),
+::highlight(privacy-guard-custom) {
   color: transparent;
   -webkit-text-fill-color: transparent;
   text-shadow: 0 0 0.6em #3c4043, 0 0 0.6em #3c4043, 0 0 0.6em #3c4043;
@@ -12,8 +16,12 @@
 /* Selection is painted above highlights with its own text color, which would reveal the text.
    Elements holding hidden text keep it blurred while selected (only for types switched on). */
 html[data-privacy-guard-active~='email'] [data-privacy-guard-selection~='email']::selection,
-html[data-privacy-guard-active~='phone'] [data-privacy-guard-selection~='phone']::selection,
+html[data-privacy-guard-active~='apiKey'] [data-privacy-guard-selection~='apiKey']::selection,
+html[data-privacy-guard-active~='iban'] [data-privacy-guard-selection~='iban']::selection,
 html[data-privacy-guard-active~='card'] [data-privacy-guard-selection~='card']::selection,
+html[data-privacy-guard-active~='phone'] [data-privacy-guard-selection~='phone']::selection,
+html[data-privacy-guard-active~='ip'] [data-privacy-guard-selection~='ip']::selection,
+html[data-privacy-guard-active~='custom'] [data-privacy-guard-selection~='custom']::selection,
 [data-privacy-guard-masked]::selection {
   color: transparent !important;
   -webkit-text-fill-color: transparent !important;
@@ -24,8 +32,12 @@ html[data-privacy-guard-active~='card'] [data-privacy-guard-selection~='card']::
 
 /* SVG text ignores highlight painting, so an SVG <text> holding hidden values is blurred whole. */
 html[data-privacy-guard-active~='email'] svg text:is([data-privacy-guard-selection~='email'], :has([data-privacy-guard-selection~='email'])),
+html[data-privacy-guard-active~='apiKey'] svg text:is([data-privacy-guard-selection~='apiKey'], :has([data-privacy-guard-selection~='apiKey'])),
+html[data-privacy-guard-active~='iban'] svg text:is([data-privacy-guard-selection~='iban'], :has([data-privacy-guard-selection~='iban'])),
+html[data-privacy-guard-active~='card'] svg text:is([data-privacy-guard-selection~='card'], :has([data-privacy-guard-selection~='card'])),
 html[data-privacy-guard-active~='phone'] svg text:is([data-privacy-guard-selection~='phone'], :has([data-privacy-guard-selection~='phone'])),
-html[data-privacy-guard-active~='card'] svg text:is([data-privacy-guard-selection~='card'], :has([data-privacy-guard-selection~='card'])) {
+html[data-privacy-guard-active~='ip'] svg text:is([data-privacy-guard-selection~='ip'], :has([data-privacy-guard-selection~='ip'])),
+html[data-privacy-guard-active~='custom'] svg text:is([data-privacy-guard-selection~='custom'], :has([data-privacy-guard-selection~='custom'])) {
   /* Thickening the glyphs before blurring makes the blur as dense as the text-shadow one. */
   fill: #3c4043 !important;
   stroke: #3c4043 !important;
@@ -39,4 +51,64 @@ html[data-privacy-guard-active~='card'] svg text:is([data-privacy-guard-selectio
   -webkit-text-fill-color: transparent !important;
   text-shadow: 0 0 0.6em #3c4043, 0 0 0.6em #3c4043, 0 0 0.6em #3c4043 !important;
   caret-color: #5f6368 !important;
+}
+
+/* Blur strength (medium is the default above). */
+html[data-privacy-guard-strength='light'] ::highlight(privacy-guard-email),
+html[data-privacy-guard-strength='light'] ::highlight(privacy-guard-apiKey),
+html[data-privacy-guard-strength='light'] ::highlight(privacy-guard-iban),
+html[data-privacy-guard-strength='light'] ::highlight(privacy-guard-card),
+html[data-privacy-guard-strength='light'] ::highlight(privacy-guard-phone),
+html[data-privacy-guard-strength='light'] ::highlight(privacy-guard-ip),
+html[data-privacy-guard-strength='light'] ::highlight(privacy-guard-custom),
+html[data-privacy-guard-strength='light'][data-privacy-guard-active~='email'] [data-privacy-guard-selection~='email']::selection,
+html[data-privacy-guard-strength='light'][data-privacy-guard-active~='apiKey'] [data-privacy-guard-selection~='apiKey']::selection,
+html[data-privacy-guard-strength='light'][data-privacy-guard-active~='iban'] [data-privacy-guard-selection~='iban']::selection,
+html[data-privacy-guard-strength='light'][data-privacy-guard-active~='card'] [data-privacy-guard-selection~='card']::selection,
+html[data-privacy-guard-strength='light'][data-privacy-guard-active~='phone'] [data-privacy-guard-selection~='phone']::selection,
+html[data-privacy-guard-strength='light'][data-privacy-guard-active~='ip'] [data-privacy-guard-selection~='ip']::selection,
+html[data-privacy-guard-strength='light'][data-privacy-guard-active~='custom'] [data-privacy-guard-selection~='custom']::selection,
+html[data-privacy-guard-strength='light'] [data-privacy-guard-masked],
+html[data-privacy-guard-strength='light'] [data-privacy-guard-masked]::selection {
+  text-shadow: 0 0 0.6em #3c4043, 0 0 0.6em #3c4043 !important;
+}
+
+html[data-privacy-guard-strength='strong'] ::highlight(privacy-guard-email),
+html[data-privacy-guard-strength='strong'] ::highlight(privacy-guard-apiKey),
+html[data-privacy-guard-strength='strong'] ::highlight(privacy-guard-iban),
+html[data-privacy-guard-strength='strong'] ::highlight(privacy-guard-card),
+html[data-privacy-guard-strength='strong'] ::highlight(privacy-guard-phone),
+html[data-privacy-guard-strength='strong'] ::highlight(privacy-guard-ip),
+html[data-privacy-guard-strength='strong'] ::highlight(privacy-guard-custom),
+html[data-privacy-guard-strength='strong'][data-privacy-guard-active~='email'] [data-privacy-guard-selection~='email']::selection,
+html[data-privacy-guard-strength='strong'][data-privacy-guard-active~='apiKey'] [data-privacy-guard-selection~='apiKey']::selection,
+html[data-privacy-guard-strength='strong'][data-privacy-guard-active~='iban'] [data-privacy-guard-selection~='iban']::selection,
+html[data-privacy-guard-strength='strong'][data-privacy-guard-active~='card'] [data-privacy-guard-selection~='card']::selection,
+html[data-privacy-guard-strength='strong'][data-privacy-guard-active~='phone'] [data-privacy-guard-selection~='phone']::selection,
+html[data-privacy-guard-strength='strong'][data-privacy-guard-active~='ip'] [data-privacy-guard-selection~='ip']::selection,
+html[data-privacy-guard-strength='strong'][data-privacy-guard-active~='custom'] [data-privacy-guard-selection~='custom']::selection,
+html[data-privacy-guard-strength='strong'] [data-privacy-guard-masked],
+html[data-privacy-guard-strength='strong'] [data-privacy-guard-masked]::selection {
+  text-shadow: 0 0 0.8em #3c4043, 0 0 0.8em #3c4043, 0 0 0.8em #3c4043, 0 0 0.8em #3c4043 !important;
+}
+
+/* Solid bar style: an ink-colored bar instead of a blur. Comes last so it wins over any strength. */
+html[data-privacy-guard-style='bar'] ::highlight(privacy-guard-email),
+html[data-privacy-guard-style='bar'] ::highlight(privacy-guard-apiKey),
+html[data-privacy-guard-style='bar'] ::highlight(privacy-guard-iban),
+html[data-privacy-guard-style='bar'] ::highlight(privacy-guard-card),
+html[data-privacy-guard-style='bar'] ::highlight(privacy-guard-phone),
+html[data-privacy-guard-style='bar'] ::highlight(privacy-guard-ip),
+html[data-privacy-guard-style='bar'] ::highlight(privacy-guard-custom),
+html[data-privacy-guard-style='bar'][data-privacy-guard-active~='email'] [data-privacy-guard-selection~='email']::selection,
+html[data-privacy-guard-style='bar'][data-privacy-guard-active~='apiKey'] [data-privacy-guard-selection~='apiKey']::selection,
+html[data-privacy-guard-style='bar'][data-privacy-guard-active~='iban'] [data-privacy-guard-selection~='iban']::selection,
+html[data-privacy-guard-style='bar'][data-privacy-guard-active~='card'] [data-privacy-guard-selection~='card']::selection,
+html[data-privacy-guard-style='bar'][data-privacy-guard-active~='phone'] [data-privacy-guard-selection~='phone']::selection,
+html[data-privacy-guard-style='bar'][data-privacy-guard-active~='ip'] [data-privacy-guard-selection~='ip']::selection,
+html[data-privacy-guard-style='bar'][data-privacy-guard-active~='custom'] [data-privacy-guard-selection~='custom']::selection,
+html[data-privacy-guard-style='bar'] [data-privacy-guard-masked],
+html[data-privacy-guard-style='bar'] [data-privacy-guard-masked]::selection {
+  text-shadow: none !important;
+  background-color: #0F1B2D !important;
 }

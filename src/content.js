@@ -3,7 +3,7 @@
 (function () {
   'use strict';
 
-  const { findMatches, TYPES } = globalThis.PiiDetectors;
+  const { findMatches, createCustomPattern, TYPES } = globalThis.PiiDetectors;
   const Settings = globalThis.PrivacyGuardSettings;
 
   const HIGHLIGHT_PREFIX = 'privacy-guard-';
@@ -38,17 +38,37 @@
   // Page stylesheets (and content.css) don't reach inside shadow roots, so each one adopts
   // this copy of content.css. Inside a shadow tree, :host-context() stands in for `html`.
   // tests/styles.test.js checks it stays in line with content.css.
+  const STYLE_ATTRIBUTE = 'data-privacy-guard-style';
+  const STRENGTH_ATTRIBUTE = 'data-privacy-guard-strength';
   const BLUR = '0 0 0.6em #3c4043, 0 0 0.6em #3c4043, 0 0 0.6em #3c4043';
-  const activeSelector = (type, inner) =>
-    `:host-context(html[${ACTIVE_TYPES_ATTRIBUTE}~='${type}']) ${inner.replaceAll('TYPE', type)}`;
+  const LIGHT_BLUR = '0 0 0.6em #3c4043, 0 0 0.6em #3c4043';
+  const STRONG_BLUR = '0 0 0.8em #3c4043, 0 0 0.8em #3c4043, 0 0 0.8em #3c4043, 0 0 0.8em #3c4043';
+  const NO_SHADOW = 'none';
+  const onPage = (htmlAttributes, inner) => `:host-context(html${htmlAttributes}) ${inner}`;
+  const highlightSelectors = (htmlAttributes = '') =>
+    TYPES.map((type) => {
+      const highlight = `::highlight(${HIGHLIGHT_PREFIX}${type})`;
+      return htmlAttributes ? onPage(htmlAttributes, highlight) : highlight;
+    });
+  const selectionSelectors = (htmlAttributes = '') =>
+    TYPES.map((type) =>
+      onPage(`${htmlAttributes}[${ACTIVE_TYPES_ATTRIBUTE}~='${type}']`, `[${SELECTION_GUARD_ATTRIBUTE}~='${type}']::selection`)
+    );
+  const variantRule = (htmlAttributes, declarations) => `
+    ${[
+      ...highlightSelectors(htmlAttributes),
+      ...selectionSelectors(htmlAttributes),
+      onPage(htmlAttributes, `[${FIELD_MASK_ATTRIBUTE}]`),
+      onPage(htmlAttributes, `[${FIELD_MASK_ATTRIBUTE}]::selection`),
+    ].join(', ')} { ${declarations} }`;
   const SHADOW_STYLES = `
-    ${TYPES.map((type) => `::highlight(${HIGHLIGHT_PREFIX}${type})`).join(', ')} {
+    ${highlightSelectors().join(', ')} {
       color: transparent;
       -webkit-text-fill-color: transparent;
       text-shadow: ${BLUR};
       text-decoration: none;
     }
-    ${TYPES.map((type) => activeSelector(type, `[${SELECTION_GUARD_ATTRIBUTE}~='TYPE']::selection`)).join(', ')},
+    ${selectionSelectors().join(', ')},
     [${FIELD_MASK_ATTRIBUTE}]::selection {
       color: transparent !important;
       -webkit-text-fill-color: transparent !important;
@@ -56,9 +76,9 @@
       background-color: Highlight !important;
     }
     ${TYPES.map((type) =>
-      activeSelector(
-        type,
-        `svg text:is([${SELECTION_GUARD_ATTRIBUTE}~='TYPE'], :has([${SELECTION_GUARD_ATTRIBUTE}~='TYPE']))`
+      onPage(
+        `[${ACTIVE_TYPES_ATTRIBUTE}~='${type}']`,
+        `svg text:is([${SELECTION_GUARD_ATTRIBUTE}~='${type}'], :has([${SELECTION_GUARD_ATTRIBUTE}~='${type}']))`
       )
     ).join(', ')} {
       fill: #3c4043 !important;
@@ -71,10 +91,18 @@
       -webkit-text-fill-color: transparent !important;
       text-shadow: ${BLUR} !important;
       caret-color: #5f6368 !important;
-    }`;
+    }
+    ${variantRule(`[${STRENGTH_ATTRIBUTE}='light']`, `text-shadow: ${LIGHT_BLUR} !important;`)}
+    ${variantRule(`[${STRENGTH_ATTRIBUTE}='strong']`, `text-shadow: ${STRONG_BLUR} !important;`)}
+    ${variantRule(
+      `[${STYLE_ATTRIBUTE}='bar']`,
+      `text-shadow: ${NO_SHADOW} !important; background-color: #0F1B2D !important;`
+    )}`;
 
   // Fail closed: hide everything with the defaults until stored settings arrive.
   let settings = Settings.DEFAULTS;
+  let customPattern = null;
+  let customPatternKey = '';
   const highlights = new Map(TYPES.map((type) => [type, new Highlight()]));
   const rangesByTextNode = new Map();
   const shadowRoots = new Set();
@@ -85,7 +113,7 @@
 
   /**
    * Summary: whether a data type should currently be hidden.
-   * Parameters: type — 'email' | 'phone' | 'card'.
+   * Parameters: type — one of PiiDetectors.TYPES, such as 'email' or 'apiKey'.
    * Returns: true when hiding is on overall and for this type.
    * Usage: isTypeActive('email') → false after the user unticks Emails in the popup.
    */
@@ -98,7 +126,10 @@
    * Usage: called after settings change; ranges stay tracked, only their painting toggles.
    */
   function applyHighlightRegistry() {
-    document.documentElement.setAttribute(ACTIVE_TYPES_ATTRIBUTE, TYPES.filter(isTypeActive).join(' '));
+    const html = document.documentElement;
+    html.setAttribute(ACTIVE_TYPES_ATTRIBUTE, TYPES.filter(isTypeActive).join(' '));
+    html.setAttribute(STYLE_ATTRIBUTE, settings.style);
+    html.setAttribute(STRENGTH_ATTRIBUTE, settings.blurStrength);
     for (const [type, highlight] of highlights) {
       const name = HIGHLIGHT_PREFIX + type;
       if (isTypeActive(type)) {
@@ -153,7 +184,7 @@
     if (parent.tagName === 'TEXTAREA') maskTextField(parent);
     if (SKIPPED_PARENT_TAGS.has(parent.tagName)) return;
 
-    const matches = findMatches(node.data);
+    const matches = findMatches(node.data, customPattern);
     if (matches.length === 0) return;
 
     const entries = matches.map(({ type, start, end }) => {
@@ -173,7 +204,7 @@
    * Usage: maskTextField(emailInput) on page load, on every keystroke and when page code sets the value.
    */
   function maskTextField(field) {
-    const shouldMask = findMatches(field.value).some((match) => isTypeActive(match.type));
+    const shouldMask = findMatches(field.value, customPattern).some((match) => isTypeActive(match.type));
     field.toggleAttribute(FIELD_MASK_ATTRIBUTE, shouldMask);
   }
 
@@ -303,6 +334,32 @@
   }
 
   /**
+   * Summary: rebuilds the custom-words pattern when the user's words or their options change.
+   * Returns: true when the pattern changed, so the page must be rescanned.
+   * Usage: if (updateCustomPattern()) rescanEverything();
+   */
+  function updateCustomPattern() {
+    const { customWords, customWordsIgnoreCase, customWordsAsPatterns } = settings;
+    const key = JSON.stringify([customWords, customWordsIgnoreCase, customWordsAsPatterns]);
+    if (key === customPatternKey) return false;
+    customPatternKey = key;
+    customPattern = createCustomPattern(customWords, {
+      ignoreCase: customWordsIgnoreCase,
+      asPatterns: customWordsAsPatterns,
+    });
+    return true;
+  }
+
+  /**
+   * Summary: scans the whole page again, including every watched shadow root.
+   * Usage: after the custom words change, since what counts as a match changed.
+   */
+  function rescanEverything() {
+    scanSubtree(document.documentElement);
+    shadowRoots.forEach(scanSubtree);
+  }
+
+  /**
    * Summary: applies new settings to this page.
    * Parameters: nextSettings — complete settings object.
    * Usage: called once settings load and whenever they change.
@@ -310,10 +367,12 @@
   function applySettings(nextSettings) {
     settings = nextSettings;
     applyHighlightRegistry();
-    allTextFields().forEach(maskTextField);
+    if (updateCustomPattern()) rescanEverything();
+    else allTextFields().forEach(maskTextField);
   }
 
   applyHighlightRegistry();
+  updateCustomPattern();
   scanSubtree(document.documentElement);
   observer.observe(document.documentElement, OBSERVER_OPTIONS);
   document.addEventListener('input', handleFieldEvent, true);

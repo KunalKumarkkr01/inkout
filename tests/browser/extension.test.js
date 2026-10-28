@@ -281,6 +281,75 @@ describe('extension in a real browser', { skip: skipReason }, () => {
     });
   });
 
+  describe('all types and hide styles', () => {
+    const TOKEN = 'ghp' + '_' + 'A'.repeat(36);
+    const WITH_CUSTOM_WORDS = { ...DEFAULT_SETTINGS, customWords: ['Project Falcon'] };
+
+    before(async () => {
+      await tab.goto(`${server.origin}/types.html`);
+      await setSettings(WITH_CUSTOM_WORDS);
+    });
+    after(() => setSettings(DEFAULT_SETTINGS));
+
+    /**
+     * Summary: screenshot of the email on the types fixture, for comparing hide styles.
+     * Returns: Promise of a PNG buffer.
+     */
+    async function emailPixels() {
+      await tab.settle();
+      return tab.screenshot(await rectOf('#email', 'priya.sharma@example.com'));
+    }
+
+    test('API keys, bank account numbers and custom words are hidden; IP addresses are not by default', async () => {
+      assert.deepEqual(await tab.hiddenText(), {
+        apiKey: [TOKEN],
+        iban: ['DE89 3704 0044 0532 0130 00'],
+        custom: ['Project Falcon'],
+        email: ['priya.sharma@example.com'],
+      });
+      assert.equal(await redPixelsOver('#key', TOKEN), 0);
+      assert.equal(await redPixelsOver('#iban', 'DE89 3704 0044 0532 0130 00'), 0);
+      assert.equal(await redPixelsOver('#custom', 'Project Falcon'), 0);
+      assert.ok((await redPixelsOver('#ip', '192.168.1.24')) > 50);
+      assert.equal(await tab.evaluate(`document.querySelector('#iban-field').hasAttribute('data-privacy-guard-masked')`), true);
+    });
+
+    test('IP addresses are hidden once switched on', async () => {
+      await setSettings({ ...WITH_CUSTOM_WORDS, types: { ...DEFAULT_SETTINGS.types, ip: true } });
+      assert.deepEqual((await tab.hiddenText()).ip, ['192.168.1.24']);
+      assert.equal(await redPixelsOver('#ip', '192.168.1.24'), 0);
+      await setSettings(WITH_CUSTOM_WORDS);
+    });
+
+    test('removing a custom word shows it again without a reload', async () => {
+      await setSettings(DEFAULT_SETTINGS);
+      assert.equal((await tab.hiddenText()).custom, undefined);
+      assert.ok((await redPixelsOver('#custom', 'Project Falcon')) > 50);
+      await setSettings(WITH_CUSTOM_WORDS);
+    });
+
+    test('the solid bar style hides with a bar instead of a blur', async () => {
+      const blurred = await emailPixels();
+      await setSettings({ ...WITH_CUSTOM_WORDS, style: 'bar' });
+      assert.equal(await tab.evaluate(`document.documentElement.dataset.privacyGuardStyle`), 'bar');
+      assert.equal(await redPixelsOver('#email', 'priya.sharma@example.com'), 0);
+      assert.equal(await redPixelsOver('#iban-field'), 0);
+      assert.equal(samePixels(blurred, await emailPixels()), false);
+      await setSettings(WITH_CUSTOM_WORDS);
+    });
+
+    test('light and strong blur look different, and both hide the text', async () => {
+      await setSettings({ ...WITH_CUSTOM_WORDS, blurStrength: 'light' });
+      const light = await emailPixels();
+      assert.equal(await redPixelsOver('#email', 'priya.sharma@example.com'), 0);
+      await setSettings({ ...WITH_CUSTOM_WORDS, blurStrength: 'strong' });
+      const strong = await emailPixels();
+      assert.equal(await redPixelsOver('#email', 'priya.sharma@example.com'), 0);
+      assert.equal(samePixels(light, strong), false);
+      await setSettings(WITH_CUSTOM_WORDS);
+    });
+  });
+
   describe('selecting hidden text', () => {
     before(() => openFixture('basic.html'));
     after(() => setSettings(DEFAULT_SETTINGS));

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>All types</title>
+    <!-- Pure red text lets the pixel tests tell original glyphs apart from the grey blur. -->
+    <style>
+      body { font: 22px/1.6 Arial, sans-serif; color: #ff0000; margin: 20px; background: #ffffff; }
+      input { font: inherit; color: #ff0000; width: 520px; display: block; margin: 6px 0; }
+    </style>
+  </head>
+  <body>
+    <p id="key">Token <span id="token"></span> rotated.</p>
+    <p id="iban">Pay DE89 3704 0044 0532 0130 00 today.</p>
+    <p id="ip">Server 192.168.1.24 is up.</p>
+    <p id="custom">Kickoff for Project Falcon.</p>
+    <p id="email">Mail priya.sharma@example.com now.</p>
+    <input id="iban-field" type="text" value="GB82WEST12345698765432" />
+    <script>
+      // Built at runtime so no real-looking token sits in the repository.
+      document.getElementById('token').textContent = 'ghp' + '_' + 'A'.repeat(36);
+    </script>
+  </body>
+</html>
