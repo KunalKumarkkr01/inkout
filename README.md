@@ -72,3 +72,7 @@ This runs every test with Node's built-in test runner (Node 22+, no dependencies
 | `src/popup.*` | Toolbar popup |
 | `src/background.js` | Keyboard shortcut and OFF badge |
 | `tests/browser/` | Headless-Chrome test harness, fixtures and end-to-end tests |
+
+## License
+
+[MIT](LICENSE). Free to use, change and share.

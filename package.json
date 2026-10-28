@@ -2,6 +2,7 @@
   "name": "screen-share-privacy-guard",
   "version": "1.0.0",
   "private": true,
+  "license": "MIT",
   "description": "Chrome extension that hides emails, phone numbers and card numbers on web pages while you share your screen.",
   "scripts": {
     "test": "node --test"
