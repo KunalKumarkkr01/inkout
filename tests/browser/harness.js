@@ -89,6 +89,11 @@ class Tab {
       this.prepareSession(child).catch(() => {});
       return;
     }
+    // An out-of-process frame's session ends when its page navigates away.
+    if (message.method === 'Target.detachedFromTarget' && message.params.sessionId !== this.sessionId) {
+      this.frameSessions.delete(message.params.sessionId);
+      return;
+    }
     if (!this.frameSessions.has(message.sessionId)) return;
     if (message.method === 'Runtime.executionContextCreated') {
       const { id, name, auxData } = message.params.context;

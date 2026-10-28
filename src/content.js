@@ -5,6 +5,7 @@
 
   const { findMatches, createCustomPattern, TYPES } = globalThis.PiiDetectors;
   const Settings = globalThis.PrivacyGuardSettings;
+  const { isSiteActive } = globalThis.InkoutSites;
 
   const HIGHLIGHT_PREFIX = 'privacy-guard-';
   const FIELD_MASK_ATTRIBUTE = 'data-privacy-guard-masked';
@@ -103,6 +104,9 @@
   let settings = Settings.DEFAULTS;
   let customPattern = null;
   let customPatternKey = '';
+  // Whether this page is being protected at all (on, and allowed on this site). While not,
+  // the page isn't watched or scanned, and nothing is painted over.
+  let protecting = true;
   const highlights = new Map(TYPES.map((type) => [type, new Highlight()]));
   const rangesByTextNode = new Map();
   const shadowRoots = new Set();
@@ -118,7 +122,22 @@
    * Usage: isTypeActive('email') → false after the user unticks Emails in the popup.
    */
   function isTypeActive(type) {
-    return settings.enabled && settings.types[type];
+    return protecting && settings.types[type];
+  }
+
+  /**
+   * Summary: the host of the tab's top page, so frames follow the rules of the site they're shown on.
+   * Returns: a host such as "mail.example.com" or "localhost:3000" ('' for pages without one).
+   * Usage: isSiteActive(settings, topHost()).
+   */
+  function topHost() {
+    if (window === window.top) return location.host;
+    const origins = location.ancestorOrigins;
+    try {
+      return new URL(origins[origins.length - 1]).host;
+    } catch {
+      return location.host;
+    }
   }
 
   /**
@@ -217,6 +236,7 @@
     if (shadowRoots.has(shadowRoot)) return;
     shadowRoots.add(shadowRoot);
     shadowRoot.adoptedStyleSheets = [...shadowRoot.adoptedStyleSheets, shadowSheet];
+    if (!protecting) return;
     observer.observe(shadowRoot, OBSERVER_OPTIONS);
     scanSubtree(shadowRoot);
   }
@@ -319,6 +339,7 @@
    * Parameters: event — input event, or the value-changed event from page-hooks.js.
    */
   function handleFieldEvent(event) {
+    if (!protecting) return;
     const field = event.composedPath()[0];
     if (field instanceof Element && field.matches(TEXT_FIELD_SELECTOR)) maskTextField(field);
   }
@@ -366,9 +387,35 @@
    */
   function applySettings(nextSettings) {
     settings = nextSettings;
+    const patternChanged = updateCustomPattern();
+    const shouldProtect = settings.enabled && isSiteActive(settings, topHost());
+    if (shouldProtect !== protecting) {
+      setProtecting(shouldProtect);
+      return;
+    }
     applyHighlightRegistry();
-    if (updateCustomPattern()) rescanEverything();
+    if (!protecting) return;
+    if (patternChanged) rescanEverything();
     else allTextFields().forEach(maskTextField);
+  }
+
+  /**
+   * Summary: starts or stops protecting this page as a whole.
+   * Parameters: on — true to watch, scan and hide; false to stop all work and show everything.
+   * Usage: setProtecting(false) on a never-hide site; setProtecting(true) once it's removed from the list.
+   */
+  function setProtecting(on) {
+    protecting = on;
+    applyHighlightRegistry();
+    if (on) {
+      observer.observe(document.documentElement, OBSERVER_OPTIONS);
+      shadowRoots.forEach((shadowRoot) => observer.observe(shadowRoot, OBSERVER_OPTIONS));
+      rescanEverything();
+      return;
+    }
+    observer.disconnect();
+    [...rangesByTextNode.keys()].forEach(forgetTextNode);
+    allTextFields().forEach((field) => field.removeAttribute(FIELD_MASK_ATTRIBUTE));
   }
 
   applyHighlightRegistry();

@@ -28,7 +28,7 @@
     },
     {
       "matches": ["<all_urls>"],
-      "js": ["src/settings.js", "src/detectors.js", "src/content.js"],
+      "js": ["src/settings.js", "src/sites.js", "src/detectors.js", "src/content.js"],
       "css": ["src/content.css"],
       "run_at": "document_start",
       "all_frames": true,

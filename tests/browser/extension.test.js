@@ -404,6 +404,51 @@ describe('extension in a real browser', { skip: skipReason }, () => {
     });
   });
 
+  describe('site rules', () => {
+    const siteHost = () => new URL(server.origin).host;
+    after(() => setSettings(DEFAULT_SETTINGS));
+
+    test('nothing is hidden on a never-hide site', async () => {
+      await openFixture('basic.html');
+      await setSettings({ ...DEFAULT_SETTINGS, neverHideSites: [siteHost()] });
+      assert.deepEqual(await tab.hiddenText(), {});
+      assert.ok((await redPixelsOver('#contact', 'priya.sharma@example.com')) > 50);
+      assert.equal(await tab.evaluate(`document.querySelector('[data-privacy-guard-masked]')`), null);
+    });
+
+    test('content added while on a never-hide site is left alone, then hidden once the rule goes', async () => {
+      await tab.evaluate(`document.body.insertAdjacentHTML('beforeend', '<p id="late">late@example.com</p>')`);
+      await tab.settle();
+      assert.deepEqual(await tab.hiddenText(), {});
+      await setSettings(DEFAULT_SETTINGS);
+      assert.deepEqual((await tab.hiddenText()).email, [
+        'late@example.com',
+        'ops@acme.io',
+        'priya.sharma@example.com',
+        'support@acme.io',
+        'svg@example.com',
+      ]);
+      assert.equal(await redPixelsOver('#contact', 'priya.sharma@example.com'), 0);
+      assert.equal(await redPixelsOver('#email-field'), 0);
+    });
+
+    test('only chosen sites are hidden in "only on sites I choose" mode', async () => {
+      await setSettings({ ...DEFAULT_SETTINGS, siteMode: 'chosen', chosenSites: [] });
+      assert.deepEqual(await tab.hiddenText(), {});
+      await setSettings({ ...DEFAULT_SETTINGS, siteMode: 'chosen', chosenSites: [siteHost()] });
+      assert.ok((await tab.hiddenText()).email.length > 0);
+    });
+
+    test("frames follow the rule for the tab's site, even cross-site ones", async () => {
+      await tab.goto(`${server.origin}/frames.html?cross=${encodeURIComponent(`${server.crossSiteOrigin}/frame-child.html`)}`);
+      await setSettings({ ...DEFAULT_SETTINGS, neverHideSites: [siteHost()] });
+      await tab.settle(FRAME_LOAD_WAIT_MS);
+      const frameIds = await tab.frameIds();
+      assert.equal(frameIds.length, 4);
+      for (const frameId of frameIds) assert.deepEqual(await tab.hiddenText(frameId), {});
+    });
+  });
+
   describe('web components', () => {
     before(async () => {
       await openFixture('shadow.html');
