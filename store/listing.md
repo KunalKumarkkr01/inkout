@@ -45,7 +45,8 @@ How it works:
 • A red OFF badge tells you before you share if protection is off (Alt+Shift+H)
 
 Private by design:
-• Everything runs on your device. Nothing is collected, stored elsewhere or sent anywhere.
+• Inkout collects nothing and sends nothing anywhere. Page content never leaves your browser.
+• Settings are saved in Chrome; with Chrome sync on, Chrome copies them to your other browsers.
 • No account, no analytics, no ads.
 • Free and open source: https://github.com/KunalKumarkkr01/inkout
 
@@ -57,7 +58,7 @@ Inkout hides sensitive text, such as email addresses, phone numbers and card num
 
 ## Permission justifications
 
-- **storage:** saves the user's settings (what to hide, hide style, site rules) with Chrome sync storage, and remembers temporary per-tab pauses in session storage. Nothing leaves the browser.
+- **storage:** saves the user's settings (what to hide, hide style, site rules) with Chrome sync storage, and remembers temporary per-tab pauses in session storage. Inkout itself sends nothing anywhere; if the user has Chrome sync on, Chrome copies the settings to their other signed-in browsers.
 - **Host access (content scripts on all sites):** sensitive text can appear on any website, so the hiding script has to run on every page the user opens. It only reads the page's text to find values to blur; it never sends page content anywhere and never changes the page's structure.
 
 ## Remote code

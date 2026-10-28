@@ -247,7 +247,7 @@ async function renderStore(chrome) {
       'screenshot-1-inbox.png': framedScreenshot('Emails, phones, cards and bank details <b>blurred on every site</b>', inboxPng),
       'screenshot-2-popup.png': framedScreenshot('See what is hidden. <b>Pause a tab</b> when you need to.', inboxPng, popupPng),
       'screenshot-3-settings.png': framedScreenshot('Choose <b>what to hide</b>, where, and how it looks', settingsPng),
-      'screenshot-4-welcome.png': framedScreenshot('On from the start. <b>Nothing leaves your device.</b>', welcomePng),
+      'screenshot-4-welcome.png': framedScreenshot('On from the start. <b>Nothing is collected.</b>', welcomePng),
     };
     fs.mkdirSync(STORE_DIR, { recursive: true });
     fs.mkdirSync(SITE_IMAGE_DIR, { recursive: true });
