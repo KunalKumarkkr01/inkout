@@ -16,6 +16,10 @@
   // Announced by page-hooks.js from the page's own world; keep the names in sync.
   const VALUE_CHANGED_EVENT = 'inkout:value-changed';
   const SHADOW_ATTACHED_EVENT = 'inkout:shadow-attached';
+  const SHARE_STARTED_EVENT = 'inkout:share-started';
+  const SHARE_ENDED_EVENT = 'inkout:share-ended';
+  // Set on <html> while "Blur the whole page" is on; content.css blurs the body.
+  const WHOLE_PAGE_ATTRIBUTE = 'data-privacy-guard-whole-page';
   const PRUNE_DELAY_MS = 2000;
   const COUNT_REPORT_DELAY_MS = 300;
   // <title> text isn't drawn in the page; maskTitle() rewrites it instead.
@@ -124,6 +128,11 @@
   const shadowSheet = new CSSStyleSheet();
   shadowSheet.replaceSync(SHADOW_STYLES);
   const observer = new MutationObserver(handleMutations);
+  // Puts the whole-page blur back if the page removes it.
+  const wholePageObserver = new MutationObserver(() => {
+    const html = document.documentElement;
+    if (!html.hasAttribute(WHOLE_PAGE_ATTRIBUTE)) html.setAttribute(WHOLE_PAGE_ATTRIBUTE, '');
+  });
   let pruneTimer = null;
 
   /**
@@ -503,6 +512,32 @@
    */
   function handleWorkerMessage(message) {
     if (message.type === 'pauseChanged') applyPause(message.paused);
+    if (message.type === 'toggleWholePageBlur') toggleWholePageBlur();
+  }
+
+  /**
+   * Summary: blurs this frame's whole page, or removes that blur; works whatever the settings are.
+   * Usage: Alt+Shift+B or the popup's "Blur the whole page" button, via the service worker.
+   */
+  function toggleWholePageBlur() {
+    const html = document.documentElement;
+    if (html.hasAttribute(WHOLE_PAGE_ATTRIBUTE)) {
+      wholePageObserver.disconnect();
+      html.removeAttribute(WHOLE_PAGE_ATTRIBUTE);
+      return;
+    }
+    html.setAttribute(WHOLE_PAGE_ATTRIBUTE, '');
+    wholePageObserver.observe(html, { attributes: true, attributeFilter: [WHOLE_PAGE_ATTRIBUTE] });
+  }
+
+  /**
+   * Summary: tells the service worker the page started or stopped sharing its screen.
+   * Parameters: event — share-started or share-ended event from page-hooks.js.
+   */
+  function handleShareEvent(event) {
+    const message =
+      event.type === SHARE_STARTED_EVENT ? { type: 'shareStarted', host: topHost() } : { type: 'shareEnded' };
+    chrome.runtime.sendMessage(message).catch(() => {});
   }
 
   /**
@@ -533,6 +568,8 @@
   document.addEventListener('input', handleFieldEvent, true);
   document.addEventListener(VALUE_CHANGED_EVENT, handleFieldEvent, true);
   document.addEventListener(SHADOW_ATTACHED_EVENT, handleShadowAttached, true);
+  document.addEventListener(SHARE_STARTED_EVENT, handleShareEvent, true);
+  document.addEventListener(SHARE_ENDED_EVENT, handleShareEvent, true);
 
   Settings.load().then(applySettings);
   Settings.onChange(applySettings);

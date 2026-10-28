@@ -116,6 +116,8 @@ class Tab {
    * Parameters: url — page to open.
    */
   async goto(url) {
+    // A background tab's timers are slowed down; the page under test should run like a visible one.
+    await this.chrome.send('Page.bringToFront', {}, this.sessionId);
     const loaded = this.chrome.waitFor('Page.loadEventFired', (m) => m.sessionId === this.sessionId);
     const { frameId } = await this.chrome.send('Page.navigate', { url }, this.sessionId);
     this.mainFrameId = frameId;
@@ -150,16 +152,17 @@ class Tab {
 
   /**
    * Summary: evaluates JavaScript in the page's own world or the extension's content-script world.
-   * Parameters: expression — code (may be async); options.world — 'main' | 'isolated'; options.frameId — default main frame.
+   * Parameters: expression — code (may be async); options.world — 'main' | 'isolated'; options.frameId — default main frame;
+   *   options.userGesture — run as if the user clicked (needed for screen sharing).
    * Returns: Promise of the JSON value the expression produced.
    * Usage: await tab.evaluate('CSS.highlights.size', { world: 'isolated' });
    */
-  async evaluate(expression, { world = 'main', frameId = this.mainFrameId } = {}) {
+  async evaluate(expression, { world = 'main', frameId = this.mainFrameId, userGesture = false } = {}) {
     const context = this.contexts.get(frameId)?.[world];
     if (!context) throw new Error(`No ${world} world for frame ${frameId}`);
     const result = await this.chrome.send(
       'Runtime.evaluate',
-      { expression, contextId: context.id, returnByValue: true, awaitPromise: true },
+      { expression, contextId: context.id, returnByValue: true, awaitPromise: true, userGesture },
       context.sessionId
     );
     if (result.exceptionDetails) {
@@ -202,6 +205,8 @@ class Tab {
    * Returns: Promise of { width, height, pixels } (RGBA bytes).
    */
   async screenshot(rect) {
+    // Chrome doesn't draw background tabs, so their screenshots never arrive.
+    await this.chrome.send('Page.bringToFront', {}, this.sessionId);
     const { data } = await this.chrome.send(
       'Page.captureScreenshot',
       { format: 'png', clip: { ...rect, scale: 1 }, captureBeyondViewport: true },

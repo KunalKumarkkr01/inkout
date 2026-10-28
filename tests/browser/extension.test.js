@@ -24,6 +24,7 @@ describe('extension in a real browser', { skip: skipReason }, () => {
   let server;
   let extensionId;
   let tab;
+  let page; // an extension page, to talk to the service worker like the popup does
 
   before(async () => {
     assert.ok(chromePath, 'Chrome is required on CI');
@@ -31,13 +32,84 @@ describe('extension in a real browser', { skip: skipReason }, () => {
     ({ id: extensionId } = await chrome.send('Extensions.loadUnpacked', { path: EXTENSION_DIR }));
     server = await startServer(FIXTURES);
     tab = await Tab.open(chrome, EXTENSION_NAME);
+    page = await Tab.open(chrome, EXTENSION_NAME);
+    await page.goto(`chrome-extension://${extensionId}/src/popup.html`);
   });
 
   after(async () => {
+    await page?.close();
     await tab?.close();
     await chrome?.close();
     await server?.close();
   });
+
+  // Chrome runs timers in background tabs about once a second, which delays their count reports.
+  const COUNT_REPORT_WAIT_MS = 1500;
+
+  /**
+   * Summary: ids of every open tab, read from an extension page.
+   * Returns: Promise of tab ids. (Tab URLs are hidden without the "tabs" permission.)
+   */
+  function tabIds() {
+    return page.evaluate(`chrome.tabs.query({}).then((tabs) => tabs.map((each) => each.id))`);
+  }
+
+  /**
+   * Summary: opens a new tab on a page and learns its Chrome tab id by comparing the tab list.
+   * Parameters: url — page to open.
+   * Returns: Promise of { tab, id }.
+   */
+  async function openTrackedTab(url) {
+    const before = await tabIds();
+    const opened = await Tab.open(chrome, EXTENSION_NAME);
+    const id = (await tabIds()).find((each) => !before.includes(each));
+    await opened.goto(url);
+    await opened.settle(COUNT_REPORT_WAIT_MS);
+    return { tab: opened, id };
+  }
+
+  /**
+   * Summary: sends a runtime message from the extension page and returns the reply.
+   * Parameters: message — e.g. { type: 'getTabState', tabId }.
+   */
+  function sendMessage(message) {
+    return page.evaluate(`chrome.runtime.sendMessage(${JSON.stringify(message)})`);
+  }
+
+  /**
+   * Summary: the badge text Chrome shows for a tab.
+   * Parameters: tabId.
+   */
+  function badgeText(tabId) {
+    return page.evaluate(`chrome.action.getBadgeText({ tabId: ${tabId} })`);
+  }
+
+  /**
+   * Summary: stops the extension's service worker the way Chrome does when it is idle.
+   * Returns: Promise that resolves once Chrome reports it stopped.
+   */
+  async function stopServiceWorker() {
+    const versions = new Map();
+    const stopListening = chrome.onEvent((message) => {
+      if (message.method !== 'ServiceWorker.workerVersionUpdated') return;
+      for (const version of message.params.versions) versions.set(version.versionId, version);
+    });
+    await chrome.send('ServiceWorker.enable', {}, page.sessionId);
+    await page.settle(300);
+    const running = [...versions.values()].find(
+      (version) => version.scriptURL.endsWith('/src/background.js') && version.runningStatus === 'running'
+    );
+    assert.ok(running, 'the service worker should be running before it is stopped');
+    const stopped = chrome.waitFor('ServiceWorker.workerVersionUpdated', (message) =>
+      message.params.versions.some(
+        (version) => version.versionId === running.versionId && version.runningStatus === 'stopped'
+      )
+    );
+    await chrome.send('ServiceWorker.stopWorker', { versionId: running.versionId }, page.sessionId);
+    await stopped;
+    stopListening();
+    await chrome.send('ServiceWorker.disable', {}, page.sessionId);
+  }
 
   /**
    * Summary: saves settings from a page's content-script world, then waits for every tab to apply them.
@@ -59,11 +131,12 @@ describe('extension in a real browser', { skip: skipReason }, () => {
 
   /**
    * Summary: page rectangle of the first occurrence of some text inside an element (or the element itself).
-   * Parameters: selector — CSS selector; text — substring to locate, or null for the whole element.
+   * Parameters: selector — CSS selector; text — substring to locate, or null for the whole element;
+   *   frameId — default main frame; onTab — default the shared test tab.
    * Returns: Promise of { x, y, width, height }.
    */
-  function rectOf(selector, text = null, frameId) {
-    return tab.evaluate(
+  function rectOf(selector, text = null, frameId = undefined, onTab = tab) {
+    return onTab.evaluate(
       `(() => {
         const element = document.querySelector(${JSON.stringify(selector)});
         const toPage = (box) => ({ x: box.x + scrollX, y: box.y + scrollY, width: box.width, height: box.height });
@@ -85,10 +158,10 @@ describe('extension in a real browser', { skip: skipReason }, () => {
 
   /**
    * Summary: how many original (red) glyph pixels are visible over some text.
-   * Parameters: selector, text — as for rectOf.
+   * Parameters: selector, text, onTab — as for rectOf.
    */
-  async function redPixelsOver(selector, text = null) {
-    return countRedPixels(await tab.screenshot(await rectOf(selector, text)));
+  async function redPixelsOver(selector, text = null, onTab = tab) {
+    return countRedPixels(await onTab.screenshot(await rectOf(selector, text, undefined, onTab)));
   }
 
   describe('a page as it loads', () => {
@@ -563,80 +636,10 @@ describe('extension in a real browser', { skip: skipReason }, () => {
   });
 
   describe('per-tab counts and pause', () => {
-    // Chrome runs timers in background tabs about once a second, which delays their count reports.
-    const COUNT_REPORT_WAIT_MS = 1500;
-    let page; // an extension page, to talk to the service worker like the popup does
     let first;
     let second;
 
-    /**
-     * Summary: ids of every open tab, read from an extension page.
-     * Returns: Promise of tab ids. (Tab URLs are hidden without the "tabs" permission.)
-     */
-    function tabIds() {
-      return page.evaluate(`chrome.tabs.query({}).then((tabs) => tabs.map((each) => each.id))`);
-    }
-
-    /**
-     * Summary: opens a new tab on a page and learns its Chrome tab id by comparing the tab list.
-     * Parameters: url — page to open.
-     * Returns: Promise of { tab, id }.
-     */
-    async function openTrackedTab(url) {
-      const before = await tabIds();
-      const opened = await Tab.open(chrome, EXTENSION_NAME);
-      const id = (await tabIds()).find((each) => !before.includes(each));
-      await opened.goto(url);
-      await opened.settle(COUNT_REPORT_WAIT_MS);
-      return { tab: opened, id };
-    }
-
-    /**
-     * Summary: sends a runtime message from the extension page and returns the reply.
-     * Parameters: message — e.g. { type: 'getTabState', tabId }.
-     */
-    function sendMessage(message) {
-      return page.evaluate(`chrome.runtime.sendMessage(${JSON.stringify(message)})`);
-    }
-
-    /**
-     * Summary: the badge text Chrome shows for a tab.
-     * Parameters: tabId.
-     */
-    function badgeText(tabId) {
-      return page.evaluate(`chrome.action.getBadgeText({ tabId: ${tabId} })`);
-    }
-
-    /**
-     * Summary: stops the extension's service worker the way Chrome does when it is idle.
-     * Returns: Promise that resolves once Chrome reports it stopped.
-     */
-    async function stopServiceWorker() {
-      const versions = new Map();
-      const stopListening = chrome.onEvent((message) => {
-        if (message.method !== 'ServiceWorker.workerVersionUpdated') return;
-        for (const version of message.params.versions) versions.set(version.versionId, version);
-      });
-      await chrome.send('ServiceWorker.enable', {}, page.sessionId);
-      await page.settle(300);
-      const running = [...versions.values()].find(
-        (version) => version.scriptURL.endsWith('/src/background.js') && version.runningStatus === 'running'
-      );
-      assert.ok(running, 'the service worker should be running before it is stopped');
-      const stopped = chrome.waitFor('ServiceWorker.workerVersionUpdated', (message) =>
-        message.params.versions.some(
-          (version) => version.versionId === running.versionId && version.runningStatus === 'stopped'
-        )
-      );
-      await chrome.send('ServiceWorker.stopWorker', { versionId: running.versionId }, page.sessionId);
-      await stopped;
-      stopListening();
-      await chrome.send('ServiceWorker.disable', {}, page.sessionId);
-    }
-
     before(async () => {
-      page = await Tab.open(chrome, EXTENSION_NAME);
-      await page.goto(`chrome-extension://${extensionId}/src/popup.html`);
       first = await openTrackedTab(`${server.origin}/basic.html`);
       await setSettings(DEFAULT_SETTINGS, first.tab);
       second = await openTrackedTab(`${server.origin}/basic.html`);
@@ -645,7 +648,6 @@ describe('extension in a real browser', { skip: skipReason }, () => {
     after(async () => {
       await first?.tab.close();
       await second?.tab.close();
-      await page?.close();
     });
 
     test('the tab reports how many values of each type it is hiding', async () => {
@@ -732,6 +734,142 @@ describe('extension in a real browser', { skip: skipReason }, () => {
         sharing: { active: false, label: '' },
       });
       second = null;
+    });
+  });
+
+  describe('presenter mode', () => {
+    let meeting;
+
+    /**
+     * Summary: whether protection is on, read straight from storage.
+     * Returns: Promise of boolean.
+     */
+    function enabledNow() {
+      return page.evaluate(
+        `chrome.storage.sync.get('privacyGuardSettings').then((data) => data.privacyGuardSettings.enabled)`
+      );
+    }
+
+    /**
+     * Summary: starts sharing the meeting tab's screen, as a user click would, and waits for Inkout to react.
+     * Parameters: onTab — the tab that shares.
+     */
+    async function startSharing(onTab = meeting.tab) {
+      assert.equal(await onTab.evaluate('startSharing()', { userGesture: true }), 1);
+      await onTab.settle(300);
+    }
+
+    /**
+     * Summary: stops the share the way a meeting site's own Stop button does.
+     */
+    async function stopSharing() {
+      await meeting.tab.evaluate('stopSharing()');
+      await meeting.tab.settle(300);
+    }
+
+    const sharingNow = async () => (await sendMessage({ type: 'getTabState', tabId: meeting.id })).sharing;
+
+    before(async () => {
+      meeting = await openTrackedTab(`${server.origin}/meeting.html`);
+    });
+    after(async () => {
+      await setSettings(DEFAULT_SETTINGS, meeting.tab);
+      await meeting.tab.close();
+    });
+
+    test('starting to share turns protection on and the share shows in the tab state', async () => {
+      await setSettings({ ...DEFAULT_SETTINGS, enabled: false }, meeting.tab);
+      assert.deepEqual(await meeting.tab.hiddenText(), {});
+      await startSharing();
+      assert.equal(await enabledNow(), true);
+      assert.deepEqual(await meeting.tab.hiddenText(), { email: ['priya.sharma@example.com'] });
+      assert.deepEqual(await sharingNow(), { active: true, label: new URL(server.origin).host });
+    });
+
+    test('stopping the share ends it and keeps protection on by default', async () => {
+      await stopSharing();
+      assert.deepEqual(await sharingNow(), { active: false, label: '' });
+      assert.equal(await enabledNow(), true);
+    });
+
+    test('with "turn off when sharing ends", stopping turns protection back off', async () => {
+      await setSettings({ ...DEFAULT_SETTINGS, enabled: false, autoOffWhenSharingEnds: true }, meeting.tab);
+      await startSharing();
+      assert.equal(await enabledNow(), true);
+      await stopSharing();
+      assert.equal(await enabledNow(), false);
+    });
+
+    test('switching protection by hand during a share is never undone when the share ends', async () => {
+      const autoOff = { ...DEFAULT_SETTINGS, autoOffWhenSharingEnds: true };
+      await setSettings({ ...autoOff, enabled: false }, meeting.tab);
+      await startSharing();
+      await setSettings({ ...autoOff, enabled: false }, meeting.tab);
+      await setSettings({ ...autoOff, enabled: true }, meeting.tab);
+      await stopSharing();
+      assert.equal(await enabledNow(), true);
+    });
+
+    test('starting to share ends every pause', async () => {
+      await setSettings(DEFAULT_SETTINGS, meeting.tab);
+      await sendMessage({ type: 'setPaused', tabId: meeting.id, paused: true });
+      await meeting.tab.settle(300);
+      assert.deepEqual(await meeting.tab.hiddenText(), {});
+      await startSharing();
+      assert.deepEqual(await meeting.tab.hiddenText(), { email: ['priya.sharma@example.com'] });
+      assert.equal(await badgeText(meeting.id), '');
+      assert.equal((await sendMessage({ type: 'getTabState', tabId: meeting.id })).paused, false);
+      await stopSharing();
+    });
+
+    test('closing the tab that is sharing ends the share', async () => {
+      const other = await openTrackedTab(`${server.origin}/meeting.html`);
+      await startSharing(other.tab);
+      assert.equal((await sendMessage({ type: 'getTabState', tabId: other.id })).sharing.active, true);
+      await other.tab.close();
+      await page.settle(300);
+      assert.deepEqual(await sharingNow(), { active: false, label: '' });
+    });
+  });
+
+  describe('blurring the whole page', () => {
+    let blurred;
+    before(async () => {
+      blurred = await openTrackedTab(`${server.origin}/basic.html`);
+      await setSettings(DEFAULT_SETTINGS, blurred.tab);
+    });
+    after(() => blurred.tab.close());
+
+    test('blurs everything on the page, and a second press undoes it', async () => {
+      assert.ok((await redPixelsOver('#plain', null, blurred.tab)) > 50);
+      await sendMessage({ type: 'blurPage', tabId: blurred.id });
+      await blurred.tab.settle(300);
+      assert.equal(await redPixelsOver('#plain', null, blurred.tab), 0);
+      await sendMessage({ type: 'blurPage', tabId: blurred.id });
+      await blurred.tab.settle(300);
+      assert.ok((await redPixelsOver('#plain', null, blurred.tab)) > 50);
+    });
+
+    test('works even while protection is off', async () => {
+      await setSettings({ ...DEFAULT_SETTINGS, enabled: false }, blurred.tab);
+      await sendMessage({ type: 'blurPage', tabId: blurred.id });
+      await blurred.tab.settle(300);
+      assert.equal(await redPixelsOver('#plain', null, blurred.tab), 0);
+      await sendMessage({ type: 'blurPage', tabId: blurred.id });
+      await setSettings(DEFAULT_SETTINGS, blurred.tab);
+    });
+
+    test('the page cannot remove the blur', async () => {
+      await sendMessage({ type: 'blurPage', tabId: blurred.id });
+      await blurred.tab.settle(300);
+      await blurred.tab.evaluate(`document.documentElement.removeAttribute('data-privacy-guard-whole-page')`);
+      await blurred.tab.settle(300);
+      assert.equal(await redPixelsOver('#plain', null, blurred.tab), 0);
+    });
+
+    test('the blur ends when the tab moves to another page', async () => {
+      await blurred.tab.goto(`${server.origin}/basic.html`);
+      assert.ok((await redPixelsOver('#plain', null, blurred.tab)) > 50);
     });
   });
 
