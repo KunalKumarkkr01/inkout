@@ -873,48 +873,148 @@ describe('extension in a real browser', { skip: skipReason }, () => {
     });
   });
 
-  describe('popup and toolbar badge', () => {
+  describe('popup', () => {
+    const POPUP_MAX_WIDTH = 360;
+    const POPUP_MAX_HEIGHT = 600;
+    let meeting;
     let popup;
 
-    before(async () => {
-      await openFixture('basic.html');
+    /**
+     * Summary: what the popup shows right now, after it has had a moment to refresh.
+     * Returns: Promise of { pressed, title, desc, host, siteLine, counts, pause, pauseShown, banner, blurShown }.
+     */
+    async function popupView() {
+      await popup.settle(400);
+      return popup.evaluate(`(() => {
+        const text = (id) => document.getElementById(id).textContent.replace(/\\s+/g, ' ').trim();
+        const shown = (id) => !document.getElementById(id).hidden;
+        return {
+          pressed: document.getElementById('power').getAttribute('aria-pressed'),
+          title: text('state-title'),
+          desc: text('state-desc'),
+          host: text('site-host'),
+          siteLine: text('site-line'),
+          counts: text('counts'),
+          pause: text('pause'),
+          pauseShown: shown('pause'),
+          banner: shown('sharing-banner') ? text('sharing-banner') : null,
+          blurShown: shown('blur-page'),
+        };
+      })()`);
+    }
+
+    /**
+     * Summary: checks the popup fits Chrome's popup size limit without scrollbars.
+     */
+    async function assertFits() {
+      // Opened as a tab here, so measure the popup's body rather than the whole window.
+      const size = await popup.evaluate(
+        `({ width: document.body.scrollWidth, height: Math.ceil(document.body.getBoundingClientRect().height) })`
+      );
+      assert.ok(size.width <= POPUP_MAX_WIDTH, `popup is ${size.width}px wide`);
+      assert.ok(size.height <= POPUP_MAX_HEIGHT, `popup is ${size.height}px tall`);
+    }
+
+    /**
+     * Summary: opens the popup for a given tab (the tabId parameter stands in for "the active tab").
+     * Parameters: tabId.
+     */
+    async function openPopupFor(tabId) {
+      await popup?.close();
       popup = await Tab.open(chrome, EXTENSION_NAME);
-      await popup.goto(`chrome-extension://${extensionId}/src/popup.html`);
+      await popup.goto(`chrome-extension://${extensionId}/src/popup.html?tabId=${tabId}`);
+    }
+
+    before(async () => {
+      meeting = await openTrackedTab(`${server.origin}/meeting.html`);
+      await setSettings(DEFAULT_SETTINGS, meeting.tab);
+      await meeting.tab.settle(COUNT_REPORT_WAIT_MS);
+      await openPopupFor(meeting.id);
     });
     after(async () => {
       await popup?.close();
-      await setSettings(DEFAULT_SETTINGS);
+      await setSettings(DEFAULT_SETTINGS, meeting.tab);
+      await meeting.tab.close();
     });
 
-    test('the popup shows the current state', async () => {
-      assert.deepEqual(
-        await popup.evaluate(`({
-          enabled: document.getElementById('enabled').checked,
-          status: document.getElementById('status').textContent,
-          types: [...document.querySelectorAll('input[data-type]')].map((box) => box.checked),
-        })`),
-        { enabled: true, status: 'Hiding is ON', types: [true, true, true] }
-      );
+    test('shows that protection is on, and what is hidden on the tab', async () => {
+      assert.deepEqual(await popupView(), {
+        pressed: 'true',
+        title: 'Protection is on',
+        desc: 'Emails, phone numbers and card numbers are blurred on every site.',
+        host: new URL(server.origin).host,
+        siteLine: '1 item hidden on this tab',
+        counts: '1 email',
+        pause: 'Pause on this site',
+        pauseShown: true,
+        banner: null,
+        blurShown: false,
+      });
+      await assertFits();
     });
 
-    test('switching off in the popup shows everything on open pages and badges the icon', async () => {
-      await popup.evaluate(`document.getElementById('enabled').click()`);
-      await tab.settle(300);
-      assert.deepEqual(await tab.hiddenText(), {});
-      assert.equal(await popup.evaluate(`chrome.action.getBadgeText({})`), 'OFF');
+    test('the big button turns protection off everywhere and badges the icon', async () => {
+      await popup.evaluate(`document.getElementById('power').click()`);
+      await meeting.tab.settle(300);
+      assert.deepEqual(await meeting.tab.hiddenText(), {});
+      assert.ok((await redPixelsOver('#contact', 'priya.sharma@example.com', meeting.tab)) > 50);
+      assert.equal(await badgeText(meeting.id), 'OFF');
+      const view = await popupView();
+      assert.equal(view.pressed, 'false');
+      assert.equal(view.title, 'Protection is off');
+      assert.equal(view.desc, 'Everything is visible to anyone watching your screen.');
+      assert.equal(view.siteLine, 'Nothing hidden right now');
+      await assertFits();
     });
 
-    test('switching back on hides again and clears the badge', async () => {
-      await popup.evaluate(`document.getElementById('enabled').click()`);
-      await tab.settle(300);
-      assert.equal((await tab.hiddenText()).email.length, 4);
-      assert.equal(await popup.evaluate(`chrome.action.getBadgeText({})`), '');
+    test('pressing it again turns protection back on', async () => {
+      await popup.evaluate(`document.getElementById('power').click()`);
+      await meeting.tab.settle(300);
+      assert.deepEqual(await meeting.tab.hiddenText(), { email: ['priya.sharma@example.com'] });
+      assert.equal(await badgeText(meeting.id), '');
+      assert.equal((await popupView()).title, 'Protection is on');
     });
 
-    test('unticking a type in the popup shows that type on pages', async () => {
-      await popup.evaluate(`document.querySelector('input[data-type="phone"]').click()`);
-      await tab.settle(300);
-      assert.deepEqual(Object.keys(await tab.hiddenText()).sort(), ['card', 'email']);
+    test('pausing the site shows it plainly, and Resume undoes it', async () => {
+      await popup.evaluate(`document.getElementById('pause').click()`);
+      await meeting.tab.settle(300);
+      assert.equal(await badgeText(meeting.id), '❚❚');
+      let view = await popupView();
+      assert.equal(view.title, 'Paused on this tab');
+      assert.equal(view.desc, 'Nothing is hidden here until you resume or close the tab.');
+      assert.equal(view.pause, 'Resume');
+      await assertFits();
+      await popup.evaluate(`document.getElementById('pause').click()`);
+      await meeting.tab.settle(300);
+      view = await popupView();
+      assert.equal(view.title, 'Protection is on');
+      assert.equal(await badgeText(meeting.id), '');
+    });
+
+    test('while sharing, a banner and a "Blur the whole page" button appear', async () => {
+      assert.equal(await meeting.tab.evaluate('startSharing()', { userGesture: true }), 1);
+      await meeting.tab.settle(300);
+      const view = await popupView();
+      assert.equal(view.banner, `You are sharing your screen ${new URL(server.origin).host}`);
+      assert.equal(view.blurShown, true);
+      await assertFits();
+      await popup.evaluate(`document.getElementById('blur-page').click()`);
+      await meeting.tab.settle(300);
+      assert.equal(await meeting.tab.evaluate(`document.documentElement.hasAttribute('data-privacy-guard-whole-page')`), true);
+      await popup.evaluate(`document.getElementById('blur-page').click()`);
+      await meeting.tab.evaluate('stopSharing()');
+      await meeting.tab.settle(300);
+      assert.equal((await popupView()).banner, null);
+    });
+
+    test('on a page Inkout cannot run on, it says so and offers no pause', async () => {
+      const chromePage = await openTrackedTab('chrome://version');
+      await openPopupFor(chromePage.id);
+      const view = await popupView();
+      assert.equal(view.siteLine, "Inkout can't run on this page");
+      assert.equal(view.pauseShown, false);
+      await chromePage.tab.close();
+      await openPopupFor(meeting.id);
     });
   });
 });

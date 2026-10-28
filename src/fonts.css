@@ -1,0 +1,7 @@
+/* Manrope is bundled (SIL Open Font License, see fonts/OFL.txt) so extension pages load nothing remotely. */
+@font-face {
+  font-family: 'Manrope';
+  src: url('fonts/Manrope.ttf') format('truetype');
+  font-weight: 200 800;
+  font-display: block;
+}
