@@ -6,6 +6,7 @@ const TOGGLE_COMMAND = 'toggle-masking';
 const BLUR_PAGE_COMMAND = 'blur-page';
 const TABS_KEY = 'tabs';
 const PRESENTER_KEY = 'presenter';
+const WELCOME_PAGE = 'src/welcome.html';
 const NO_SHARING = Object.freeze({ active: false, label: '' });
 const TabState = InkoutTabState;
 const Presenter = InkoutPresenter;
@@ -188,6 +189,11 @@ async function handleMessage(message, sender) {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   handleMessage(message, sender).then(sendResponse, () => sendResponse(undefined));
   return true; // the reply is sent asynchronously
+});
+
+// The welcome page opens once, when Inkout is first installed (not on updates).
+chrome.runtime.onInstalled.addListener(({ reason }) => {
+  if (reason === chrome.runtime.OnInstalledReason.INSTALL) chrome.tabs.create({ url: WELCOME_PAGE });
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => {

@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Welcome to Inkout</title>
+    <link rel="icon" href="../icons/icon-32.png" />
+    <link rel="stylesheet" href="fonts.css" />
+    <link rel="stylesheet" href="welcome.css" />
+  </head>
+  <body>
+    <header class="top">
+      <div class="wrap top-row">
+        <div class="brand">
+          <svg width="30" height="30" viewBox="0 0 48 48" aria-hidden="true">
+            <rect x="1.5" y="1.5" width="45" height="45" rx="11" fill="#FFFFFF" stroke="#0F1B2D" stroke-width="3" />
+            <rect x="11" y="11" width="26" height="5" rx="2.5" fill="#B8C1CC" />
+            <path d="M12 25 L36 23" fill="none" stroke="#0F1B2D" stroke-width="8" stroke-linecap="round" />
+            <rect x="11" y="32" width="16" height="5" rx="2.5" fill="#B8C1CC" />
+          </svg>
+          <span>Inkout</span>
+        </div>
+        <button type="button" class="text-link" data-open-settings>Settings</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="wrap hero">
+        <div class="hero-text">
+          <span class="pill">Installed. Protection is on.</span>
+          <h1>Share your screen, not your inbox.</h1>
+          <p class="lead">Inkout hides email addresses, phone numbers and card numbers on every website, automatically, so they never reach the people on your call.</p>
+          <div class="actions">
+            <a class="button primary" href="#try">See it in action</a>
+            <button type="button" class="button secondary" data-open-settings>Choose what to hide</button>
+          </div>
+        </div>
+        <div class="compare" aria-hidden="true">
+          <div class="compare-column">
+            <span class="compare-label without">Without Inkout</span>
+            <div class="inbox without">
+              <div class="mail"><b>Priya Sharma</b><span class="address">priya.sharma@example.com</span></div>
+              <div class="mail"><b>Rahul Verma</b><span class="address">rahul.v@example.org</span></div>
+              <div class="mail"><b>Acme Billing</b><span class="address">billing@acme.example</span></div>
+              <div class="mail"><b>Meera Iyer</b><span class="address">meera.iyer@example.net</span></div>
+            </div>
+          </div>
+          <div class="compare-column">
+            <span class="compare-label with">With Inkout</span>
+            <div class="inbox with">
+              <div class="mail"><b>Priya Sharma</b><span class="address blurred">priya.sharma@example.com</span></div>
+              <div class="mail"><b>Rahul Verma</b><span class="address blurred">rahul.v@example.org</span></div>
+              <div class="mail"><b>Acme Billing</b><span class="address blurred">billing@acme.example</span></div>
+              <div class="mail"><b>Meera Iyer</b><span class="address blurred">meera.iyer@example.net</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="wrap steps-section">
+        <h2>Three things to set up, once</h2>
+        <ol class="steps">
+          <li>
+            <span class="step-number">1</span>
+            <span class="step-title">Pin it to the toolbar</span>
+            <span class="step-body">Click the puzzle-piece icon next to the address bar, then the pin next to Inkout. You will always see whether it is on.</span>
+          </li>
+          <li>
+            <span class="step-number">2</span>
+            <span class="step-title">Learn the shortcuts</span>
+            <span class="step-body">Alt + Shift + H turns protection on or off from any tab; a red OFF badge shows when it is off. Alt + Shift + K blurs the whole page.</span>
+          </li>
+          <li>
+            <span class="step-number">3</span>
+            <span class="step-title">Pick what to hide</span>
+            <span class="step-body">Emails, phones, cards, API keys and bank account numbers are on. Add your own words in settings.</span>
+          </li>
+        </ol>
+      </section>
+
+      <section id="try" class="wrap">
+        <div class="try">
+          <h2>Try it right here</h2>
+          <iframe id="demo-frame" class="demo-frame" src="welcome-demo.html" title="A paragraph Inkout is hiding right now"></iframe>
+          <p class="muted">This is a real paragraph: Inkout is blurring it now. Press Alt + Shift + H to see it switch off and on.</p>
+        </div>
+      </section>
+
+      <section class="wrap">
+        <div class="promise">
+          <div class="promise-text">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#5EDDD3" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>
+            <span>Nothing you see leaves your device. No account, no tracking.</span>
+          </div>
+          <a href="https://kunalkumarkkr01.github.io/inkout/privacy.html" target="_blank" rel="noopener">Privacy policy</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="bottom">
+      <div class="wrap bottom-row">
+        <span>Inkout 1.0 · Free · Contact: <a href="mailto:kunaljmit036@gmail.com">kunaljmit036@gmail.com</a></span>
+        <span class="bottom-links">
+          <a href="https://kunalkumarkkr01.github.io/inkout/" target="_blank" rel="noopener">Website</a>
+          <a href="https://github.com/KunalKumarkkr01/inkout/issues" target="_blank" rel="noopener">Report a problem</a>
+        </span>
+      </div>
+    </footer>
+
+    <script src="welcome.js"></script>
+  </body>
+</html>

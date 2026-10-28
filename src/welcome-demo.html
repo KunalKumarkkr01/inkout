@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Inkout demo</title>
+    <link rel="stylesheet" href="fonts.css" />
+    <link rel="stylesheet" href="welcome.css" />
+    <!-- Content scripts don't run on extension pages, so this demo loads them itself. It sits in a
+         frame of the welcome page so only this paragraph is hidden, not the rest of the page. -->
+    <link rel="stylesheet" href="content.css" />
+  </head>
+  <body class="demo-frame-body">
+    <p id="demo" class="demo">Hi team, send the invoice to accounts@example.com or call me on +91 98765 43210. The company card is 4111 1111 1111 1111.</p>
+    <script src="settings.js"></script>
+    <script src="sites.js"></script>
+    <script src="detectors.js"></script>
+    <script src="content.js"></script>
+  </body>
+</html>

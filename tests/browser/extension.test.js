@@ -12,6 +12,7 @@ const FIXTURES = path.join(__dirname, 'fixtures');
 const EXTENSION_NAME = JSON.parse(fs.readFileSync(path.join(EXTENSION_DIR, 'manifest.json'), 'utf8')).name;
 const DEFAULT_SETTINGS = { enabled: true, types: { email: true, phone: true, card: true } };
 const PRUNE_WAIT_MS = 2500;
+const INSTALL_SETTLE_MS = 500;
 const FRAME_LOAD_WAIT_MS = 800;
 const BULK_ROWS = 5000;
 const BULK_BUDGET_MS = 2000;
@@ -25,11 +26,19 @@ describe('extension in a real browser', { skip: skipReason }, () => {
   let extensionId;
   let tab;
   let page; // an extension page, to talk to the service worker like the popup does
+  let welcomeTargetsAtInstall = []; // page URLs open just after the extension was installed
 
   before(async () => {
     assert.ok(chromePath, 'Chrome is required on CI');
     chrome = await launchChrome(chromePath);
     ({ id: extensionId } = await chrome.send('Extensions.loadUnpacked', { path: EXTENSION_DIR }));
+    await new Promise((resolve) => setTimeout(resolve, INSTALL_SETTLE_MS));
+    const { targetInfos } = await chrome.send('Target.getTargets');
+    welcomeTargetsAtInstall = targetInfos.filter((info) => info.type === 'page').map((info) => info.url);
+    // Close the welcome tab so it doesn't get in the way of the other tests.
+    for (const info of targetInfos) {
+      if (info.url.endsWith('/src/welcome.html')) await chrome.send('Target.closeTarget', { targetId: info.targetId });
+    }
     server = await startServer(FIXTURES);
     tab = await Tab.open(chrome, EXTENSION_NAME);
     page = await Tab.open(chrome, EXTENSION_NAME);
@@ -1219,6 +1228,75 @@ describe('extension in a real browser', { skip: skipReason }, () => {
         assert.ok((await options.evaluate('document.documentElement.scrollWidth')) <= width, `scrolls sideways at ${width}px`);
       }
       await chrome.send('Emulation.clearDeviceMetricsOverride', {}, options.sessionId);
+    });
+  });
+
+  describe('welcome page', () => {
+    let welcome;
+    before(async () => {
+      welcome = await Tab.open(chrome, EXTENSION_NAME);
+      await welcome.goto(`chrome-extension://${extensionId}/src/welcome.html`);
+    });
+    after(() => welcome.close());
+
+    test('opens by itself when Inkout is installed', () => {
+      assert.ok(
+        welcomeTargetsAtInstall.some((url) => url.endsWith('/src/welcome.html')),
+        `tabs open after install: ${welcomeTargetsAtInstall.join(', ')}`
+      );
+    });
+
+    /**
+     * Summary: red pixels over some text of the "Try it right here" demo, which lives in its own frame.
+     * Parameters: text — substring of the demo paragraph.
+     */
+    async function redPixelsOverDemo(text) {
+      const rect = await welcome.evaluate(`(() => {
+        const frame = document.getElementById('demo-frame');
+        const paragraph = frame.contentDocument.getElementById('demo');
+        const node = paragraph.firstChild;
+        const at = node.data.indexOf(${JSON.stringify(text)});
+        const range = new Range();
+        range.setStart(node, at);
+        range.setEnd(node, at + ${JSON.stringify(text)}.length);
+        const inner = range.getBoundingClientRect();
+        const outer = frame.getBoundingClientRect();
+        // Trim the edges: neighbouring letters can bleed a pixel or two into the range's box.
+        const EDGE = 5;
+        return { x: outer.x + inner.x + scrollX + EDGE, y: outer.y + inner.y + scrollY, width: inner.width - 2 * EDGE, height: inner.height };
+      })()`);
+      return countRedPixels(await welcome.screenshot(rect));
+    }
+
+    test('really hides the values in its "Try it right here" paragraph, and nothing else', async () => {
+      await welcome.evaluate(`document.getElementById('demo-frame').contentDocument.getElementById('demo').style.color = '#ff0000'`);
+      await welcome.settle(300);
+      assert.deepEqual(
+        await welcome.evaluate(
+          `[...document.getElementById('demo-frame').contentWindow.CSS.highlights.values()].flatMap((highlight) => [...highlight].map(String)).sort()`
+        ),
+        ['+91 98765 43210', '4111 1111 1111 1111', 'accounts@example.com']
+      );
+      assert.equal(await welcome.evaluate('CSS.highlights.size'), 0, 'the rest of the welcome page is left as it is');
+      assert.equal(await redPixelsOverDemo('accounts@example.com'), 0);
+      assert.equal(await redPixelsOverDemo('4111 1111 1111 1111'), 0);
+      assert.ok((await redPixelsOverDemo('send the invoice')) > 50);
+    });
+
+    test('links to settings, the website, the privacy policy and support', async () => {
+      const links = await welcome.evaluate(`[...document.querySelectorAll('a[href]')].map((link) => link.href)`);
+      assert.ok(links.includes('https://kunalkumarkkr01.github.io/inkout/'));
+      assert.ok(links.includes('https://kunalkumarkkr01.github.io/inkout/privacy.html'));
+      assert.ok(links.includes('mailto:kunaljmit036@gmail.com'));
+      assert.ok(links.includes('https://github.com/KunalKumarkkr01/inkout/issues'));
+      await chrome.send('Target.setDiscoverTargets', { discover: true });
+      const opened = chrome.waitFor('Target.targetCreated', (message) =>
+        message.params.targetInfo.url.endsWith('/src/options.html')
+      );
+      await welcome.evaluate(`document.querySelector('[data-open-settings]').click()`);
+      const { params } = await opened;
+      await chrome.send('Target.closeTarget', { targetId: params.targetInfo.targetId });
+      await chrome.send('Target.setDiscoverTargets', { discover: false });
     });
   });
 });
