@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Inbox - priya.sharma@example.com - Mail</title>
+    <!-- A made-up mail app for the store screenshots: realistic, but no real product's look. -->
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; height: 100vh; font: 14px/1.5 'Segoe UI', system-ui, sans-serif; color: #1f2933; background: #f3f5f8; display: grid; grid-template-columns: 220px 400px 1fr; grid-template-rows: 60px 1fr; }
+      header { grid-column: 1 / -1; display: flex; align-items: center; gap: 24px; padding: 0 20px; background: #ffffff; border-bottom: 1px solid #e1e5ea; }
+      .logo { font-weight: 700; font-size: 18px; color: #2d4a8a; width: 180px; }
+      .search { flex: 1; max-width: 560px; height: 38px; border-radius: 10px; background: #eef1f5; display: flex; align-items: center; padding: 0 14px; color: #6b7785; }
+      .account { margin-left: auto; display: flex; align-items: center; gap: 10px; color: #4a5562; }
+      .avatar { width: 32px; height: 32px; border-radius: 50%; background: #c8d6f0; color: #2d4a8a; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+      nav { padding: 16px 12px; display: flex; flex-direction: column; gap: 2px; }
+      nav span { padding: 8px 12px; border-radius: 8px; color: #4a5562; }
+      nav .active { background: #dde6f6; color: #1f3d7a; font-weight: 600; }
+      .compose { margin-bottom: 12px; padding: 12px 16px; border-radius: 12px; background: #2d4a8a; color: #ffffff; font-weight: 600; text-align: center; }
+      .list { background: #ffffff; border-right: 1px solid #e1e5ea; overflow: hidden; }
+      .mail { padding: 12px 18px; border-bottom: 1px solid #eef1f4; display: flex; flex-direction: column; gap: 1px; }
+      .mail.open { background: #eef3fc; }
+      .mail .from { display: flex; justify-content: space-between; font-weight: 600; }
+      .mail .from time { font-weight: 400; color: #6b7785; font-size: 12px; }
+      .mail .address { color: #4a5562; font-size: 13px; }
+      .mail .subject { color: #1f2933; }
+      .mail .preview { color: #6b7785; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .reader { padding: 28px 36px; overflow: hidden; }
+      .reader h1 { margin: 0 0 16px; font-size: 22px; font-weight: 600; }
+      .sender { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+      .sender .avatar { width: 40px; height: 40px; background: #f6dcc8; color: #8a4b1d; }
+      .sender .meta { display: flex; flex-direction: column; }
+      .sender .meta span { color: #4a5562; font-size: 13px; }
+      .body p { margin: 0 0 12px; max-width: 620px; }
+      .details { margin: 16px 0; padding: 14px 18px; border-radius: 10px; background: #ffffff; border: 1px solid #e1e5ea; max-width: 620px; display: grid; grid-template-columns: 130px 1fr; gap: 6px 12px; }
+      .details dt { color: #6b7785; }
+      .details dd { margin: 0; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <span class="logo">Mail</span>
+      <span class="search">Search mail</span>
+      <span class="account">priya.sharma@example.com <span class="avatar">P</span></span>
+    </header>
+    <nav>
+      <span class="compose">Compose</span>
+      <span class="active">Inbox · 12</span>
+      <span>Starred</span>
+      <span>Sent</span>
+      <span>Drafts</span>
+      <span>Invoices</span>
+    </nav>
+    <section class="list">
+      <div class="mail open">
+        <span class="from">Rahul Verma <time>10:42</time></span>
+        <span class="address">rahul.verma@example.org</span>
+        <span class="subject">Vendor payment details</span>
+        <span class="preview">Please find the account details for this month's invoice…</span>
+      </div>
+      <div class="mail">
+        <span class="from">Meera Iyer <time>09:15</time></span>
+        <span class="address">meera.iyer@example.net</span>
+        <span class="subject">Call tomorrow?</span>
+        <span class="preview">Can we move the review to 11? My number is +91 99887 66554.</span>
+      </div>
+      <div class="mail">
+        <span class="from">Acme Billing <time>Yesterday</time></span>
+        <span class="address">billing@acme.example</span>
+        <span class="subject">Your receipt</span>
+        <span class="preview">Thanks for your payment. Card ending 1111 was charged…</span>
+      </div>
+      <div class="mail">
+        <span class="from">Arjun Nair <time>Yesterday</time></span>
+        <span class="address">arjun.nair@example.com</span>
+        <span class="subject">Deploy keys</span>
+        <span class="preview">Rotated the staging token this morning, details inside.</span>
+      </div>
+      <div class="mail">
+        <span class="from">Ananya Rao <time>Mon</time></span>
+        <span class="address">ananya.rao@example.in</span>
+        <span class="subject">Project Falcon kickoff</span>
+        <span class="preview">Agenda and notes from the kickoff meeting.</span>
+      </div>
+      <div class="mail">
+        <span class="from">Kabir Mehta <time>Mon</time></span>
+        <span class="address">kabir.mehta@example.co.uk</span>
+        <span class="subject">Flight booking</span>
+        <span class="preview">Booked under +44 20 7946 0958, confirmation attached.</span>
+      </div>
+    </section>
+    <section class="reader">
+      <h1>Vendor payment details</h1>
+      <div class="sender">
+        <span class="avatar">R</span>
+        <span class="meta"><b>Rahul Verma</b><span>rahul.verma@example.org · to me</span></span>
+      </div>
+      <div class="body">
+        <p>Hi Priya,</p>
+        <p>Here are the details for this month's invoice. Let me know once it's done, or call me on +91 98765 43210 if anything looks off.</p>
+        <dl class="details">
+          <dt>Bank account</dt><dd>DE89 3704 0044 0532 0130 00</dd>
+          <dt>Company card</dt><dd>4111 1111 1111 1111</dd>
+          <dt>Accounts team</dt><dd>accounts@acme.example</dd>
+        </dl>
+        <p>Thanks,<br />Rahul</p>
+      </div>
+    </section>
+  </body>
+</html>

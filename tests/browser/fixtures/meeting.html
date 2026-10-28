@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Meeting page</title>
+    <style>
+      body { font: 22px/1.6 Arial, sans-serif; color: #ff0000; margin: 20px; background: #ffffff; }
+    </style>
+  </head>
+  <body>
+    <p id="contact">Host: priya.sharma@example.com</p>
+    <script>
+      // Starts and stops sharing the way meeting sites do. The test calls these with a user gesture.
+      // Starting again before stopping is how sites switch what is shared.
+      const streams = [];
+      async function startSharing() {
+        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, preferCurrentTab: true });
+        streams.push(stream);
+        return stream.getVideoTracks().length;
+      }
+      function stopFirstShare() {
+        streams.shift().getTracks().forEach((track) => track.stop());
+      }
+      function stopSharing() {
+        while (streams.length > 0) stopFirstShare();
+      }
+    </script>
+  </body>
+</html>

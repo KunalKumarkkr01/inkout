@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Inkout settings</title>
+    <link rel="icon" href="../icons/icon-32.png" />
+    <link rel="stylesheet" href="fonts.css" />
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <nav class="sidebar" aria-label="Settings sections">
+      <div class="brand">
+        <svg width="30" height="30" viewBox="0 0 48 48" aria-hidden="true">
+          <rect x="1.5" y="1.5" width="45" height="45" rx="11" fill="#FFFFFF" stroke="#0F1B2D" stroke-width="3" />
+          <rect x="11" y="11" width="26" height="5" rx="2.5" fill="#B8C1CC" />
+          <path d="M12 25 L36 23" fill="none" stroke="#0F1B2D" stroke-width="8" stroke-linecap="round" />
+          <rect x="11" y="32" width="16" height="5" rx="2.5" fill="#B8C1CC" />
+        </svg>
+        <span>Inkout</span>
+      </div>
+      <a href="#hide">What to hide</a>
+      <a href="#words">Custom words</a>
+      <a href="#sites">Sites</a>
+      <a href="#look">Appearance</a>
+      <a href="#presenter">Presenter mode</a>
+      <a href="#keys">Shortcuts</a>
+      <a href="#privacy">Privacy</a>
+    </nav>
+
+    <main>
+      <div class="heading">
+        <div>
+          <h1>Settings</h1>
+          <p class="muted">Changes apply right away to every open tab.</p>
+        </div>
+        <label class="master">
+          <span id="master-label">Protection on</span>
+          <input type="checkbox" id="master" class="switch" role="switch" />
+        </label>
+      </div>
+
+      <section id="hide" class="card">
+        <h2>What to hide</h2>
+        <p class="muted">The example under each one shows how it looks on a page with your current style.</p>
+        <div class="types">
+          <label class="type">
+            <span class="type-head"><span class="type-name">Email addresses</span><input type="checkbox" class="switch" role="switch" data-type="email" /></span>
+            <span class="muted small">Any address, in text and form fields</span>
+            <span class="example-box">From: <span class="example" data-example="email">priya.sharma@example.com</span></span>
+          </label>
+          <label class="type">
+            <span class="type-head"><span class="type-name">Phone numbers</span><input type="checkbox" class="switch" role="switch" data-type="phone" /></span>
+            <span class="muted small">International formats, with or without a country code</span>
+            <span class="example-box">Call <span class="example" data-example="phone">+91 98765 43210</span></span>
+          </label>
+          <label class="type">
+            <span class="type-head"><span class="type-name">Card numbers</span><input type="checkbox" class="switch" role="switch" data-type="card" /></span>
+            <span class="muted small">Checked so random numbers are left alone</span>
+            <span class="example-box">Card <span class="example" data-example="card">4111 1111 1111 1111</span></span>
+          </label>
+          <label class="type">
+            <span class="type-head"><span class="type-name">API keys &amp; tokens</span><span class="new">New</span><input type="checkbox" class="switch" role="switch" data-type="apiKey" /></span>
+            <span class="muted small">GitHub, AWS, Stripe, OpenAI and similar</span>
+            <span class="example-box">Token <span class="example" data-example="apiKey">ghp_8Hk2Qz7WmN4xT1</span></span>
+          </label>
+          <label class="type">
+            <span class="type-head"><span class="type-name">Bank account numbers</span><span class="new">New</span><input type="checkbox" class="switch" role="switch" data-type="iban" /></span>
+            <span class="muted small">The international IBAN format</span>
+            <span class="example-box">IBAN <span class="example" data-example="iban">DE89 3704 0044 0532 0130 00</span></span>
+          </label>
+          <label class="type">
+            <span class="type-head"><span class="type-name">IP addresses</span><span class="new">New</span><input type="checkbox" class="switch" role="switch" data-type="ip" /></span>
+            <span class="muted small">Off by default: common in developer tools</span>
+            <span class="example-box">Server <span class="example" data-example="ip">192.168.1.24</span></span>
+          </label>
+          <label class="type">
+            <span class="type-head"><span class="type-name">Custom words</span><input type="checkbox" class="switch" role="switch" data-type="custom" /></span>
+            <span class="muted small">The words and phrases you list below</span>
+            <span class="example-box">Kickoff for <span class="example" data-example="custom">Project Falcon</span></span>
+          </label>
+        </div>
+      </section>
+
+      <section id="words" class="card">
+        <h2>Custom words</h2>
+        <p class="muted">Names, client names, project code names: anything you never want on a shared screen.</p>
+        <form id="custom-form" class="add-row">
+          <label class="field">
+            Add a word or phrase
+            <input type="text" id="custom-input" placeholder="e.g. Project Falcon" autocomplete="off" />
+          </label>
+          <button type="submit" id="custom-add" class="primary">Add</button>
+        </form>
+        <p id="custom-error" class="error" role="alert"></p>
+        <ul id="custom-list" class="chips"></ul>
+        <div class="options-row">
+          <label class="check"><input type="checkbox" id="custom-ignore-case" /> Ignore upper and lower case</label>
+          <label class="check"><input type="checkbox" id="custom-as-patterns" /> Advanced: use patterns (regex)</label>
+        </div>
+      </section>
+
+      <section id="sites" class="card">
+        <h2>Sites</h2>
+        <fieldset>
+          <legend>Where should Inkout hide things?</legend>
+          <label class="check"><input type="radio" name="scope" value="all" /> On every site <span class="muted">(recommended)</span></label>
+          <label class="check"><input type="radio" name="scope" value="chosen" /> Only on sites I choose</label>
+        </fieldset>
+        <div id="chosen-section" class="site-block" hidden>
+          <h3>Hide only on</h3>
+          <form id="chosen-form" class="add-row">
+            <label class="field">
+              Add a site
+              <input type="text" id="chosen-input" placeholder="e.g. mail.google.com" autocomplete="off" />
+            </label>
+            <button type="submit" id="chosen-add" class="primary">Add</button>
+          </form>
+          <p id="chosen-error" class="error" role="alert"></p>
+          <ul id="chosen-list" class="site-list"></ul>
+        </div>
+        <div class="site-block">
+          <h3>Never hide on</h3>
+          <form id="site-form" class="add-row">
+            <label class="field">
+              Add a site
+              <input type="text" id="site-input" placeholder="e.g. localhost:3000" autocomplete="off" />
+            </label>
+            <button type="submit" id="site-add" class="primary">Add</button>
+          </form>
+          <p id="site-error" class="error" role="alert"></p>
+          <ul id="never-list" class="site-list"></ul>
+          <p class="muted small">"Pause on this site" in the toolbar popup is only for the current tab. Sites listed here are never hidden.</p>
+        </div>
+      </section>
+
+      <section id="look" class="card">
+        <h2>Appearance</h2>
+        <p class="muted">How hidden text looks on the page. The examples above follow your choice.</p>
+        <div class="styles">
+          <label class="style-option">
+            <input type="radio" name="style" value="blur" />
+            <span class="style-name">Blur</span>
+            <span class="example-box">To: <span class="example preview" data-preview="blur">priya.sharma@example.com</span></span>
+            <span class="muted small">Soft and clearly hidden. The default.</span>
+          </label>
+          <label class="style-option">
+            <input type="radio" name="style" value="bar" />
+            <span class="style-name">Solid bar</span>
+            <span class="example-box">To: <span class="example preview" data-preview="bar">priya.sharma@example.com</span></span>
+            <span class="muted small">Like a redacted document. Strongest.</span>
+          </label>
+        </div>
+        <fieldset class="strength">
+          <legend>Blur strength</legend>
+          <div class="segmented">
+            <label><input type="radio" name="strength" value="light" /><span>Light</span></label>
+            <label><input type="radio" name="strength" value="medium" /><span>Medium</span></label>
+            <label><input type="radio" name="strength" value="strong" /><span>Strong</span></label>
+          </div>
+        </fieldset>
+        <label class="check">
+          <input type="checkbox" id="hide-titles" />
+          <span>Also hide them in tab titles <span class="muted">(Gmail puts your email address in the tab title)</span></span>
+        </label>
+      </section>
+
+      <section id="presenter" class="card">
+        <h2>Presenter mode</h2>
+        <p class="muted">Inkout notices when a tab starts sharing your screen in Meet, Teams, Zoom and other meeting sites on the web. It can't see shares started from desktop apps.</p>
+        <label class="row">
+          <span>Turn on when I start sharing</span>
+          <input type="checkbox" id="auto-on" class="switch" role="switch" />
+        </label>
+        <label class="row">
+          <span>Turn off when sharing ends <span class="muted">(only if sharing turned it on)</span></span>
+          <input type="checkbox" id="auto-off" class="switch" role="switch" />
+        </label>
+      </section>
+
+      <section id="keys" class="card">
+        <h2>Shortcuts</h2>
+        <div class="row"><span>Turn protection on or off</span><kbd id="key-toggle-masking">Alt+Shift+H</kbd></div>
+        <div class="row"><span>Blur the whole page</span><kbd id="key-blur-page">Alt+Shift+K</kbd></div>
+        <button type="button" id="shortcuts" class="link-button">Change shortcuts in Chrome</button>
+      </section>
+
+      <section id="privacy" class="card dark">
+        <h2>Inkout collects nothing</h2>
+        <div class="promises">
+          <span>No account</span>
+          <span>No analytics or tracking</span>
+          <span>Page content never leaves your browser</span>
+        </div>
+        <p>Your settings, custom words and site lists included, are saved in Chrome. If Chrome sync is on, Chrome copies them to your other signed-in browsers, as it does for every extension's settings.</p>
+        <a href="https://kunalkumarkkr01.github.io/inkout/privacy.html" target="_blank" rel="noopener">Read the privacy policy</a>
+      </section>
+
+      <footer class="footer">
+        <span>Inkout 1.0 · Free and open source</span>
+        <span class="footer-links">
+          <a href="https://kunalkumarkkr01.github.io/inkout/" target="_blank" rel="noopener">Website</a>
+          <a href="mailto:kunaljmit036@gmail.com">Contact: kunaljmit036@gmail.com</a>
+        </span>
+      </footer>
+    </main>
+
+    <script src="settings.js"></script>
+    <script src="sites.js"></script>
+    <script src="detectors.js"></script>
+    <script src="options.js"></script>
+  </body>
+</html>

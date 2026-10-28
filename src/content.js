@@ -3,8 +3,9 @@
 (function () {
   'use strict';
 
-  const { findMatches, TYPES } = globalThis.PiiDetectors;
+  const { findMatches, createCustomPattern, TYPES } = globalThis.PiiDetectors;
   const Settings = globalThis.PrivacyGuardSettings;
+  const { isSiteActive } = globalThis.InkoutSites;
 
   const HIGHLIGHT_PREFIX = 'privacy-guard-';
   const FIELD_MASK_ATTRIBUTE = 'data-privacy-guard-masked';
@@ -15,8 +16,16 @@
   // Announced by page-hooks.js from the page's own world; keep the names in sync.
   const VALUE_CHANGED_EVENT = 'inkout:value-changed';
   const SHADOW_ATTACHED_EVENT = 'inkout:shadow-attached';
+  const SHARE_STARTED_EVENT = 'inkout:share-started';
+  const SHARE_ENDED_EVENT = 'inkout:share-ended';
+  // Set on <html> while "Blur the whole page" is on; content.css blurs the body.
+  const WHOLE_PAGE_ATTRIBUTE = 'data-privacy-guard-whole-page';
   const PRUNE_DELAY_MS = 2000;
-  const SKIPPED_PARENT_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE', 'TEXTAREA']);
+  const COUNT_REPORT_DELAY_MS = 300;
+  // <title> text isn't drawn in the page; maskTitle() rewrites it instead.
+  const SKIPPED_PARENT_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE', 'TEXTAREA', 'TITLE']);
+  const TITLE_MASK = '•••••';
+  const IS_TOP_FRAME = window === window.top;
   const TEXT_FIELD_SELECTOR = [
     'input:not([type])',
     'input[type="text"]',
@@ -38,17 +47,37 @@
   // Page stylesheets (and content.css) don't reach inside shadow roots, so each one adopts
   // this copy of content.css. Inside a shadow tree, :host-context() stands in for `html`.
   // tests/styles.test.js checks it stays in line with content.css.
+  const STYLE_ATTRIBUTE = 'data-privacy-guard-style';
+  const STRENGTH_ATTRIBUTE = 'data-privacy-guard-strength';
   const BLUR = '0 0 0.6em #3c4043, 0 0 0.6em #3c4043, 0 0 0.6em #3c4043';
-  const activeSelector = (type, inner) =>
-    `:host-context(html[${ACTIVE_TYPES_ATTRIBUTE}~='${type}']) ${inner.replaceAll('TYPE', type)}`;
+  const LIGHT_BLUR = '0 0 0.6em #3c4043, 0 0 0.6em #3c4043';
+  const STRONG_BLUR = '0 0 0.8em #3c4043, 0 0 0.8em #3c4043, 0 0 0.8em #3c4043, 0 0 0.8em #3c4043';
+  const NO_SHADOW = 'none';
+  const onPage = (htmlAttributes, inner) => `:host-context(html${htmlAttributes}) ${inner}`;
+  const highlightSelectors = (htmlAttributes = '') =>
+    TYPES.map((type) => {
+      const highlight = `::highlight(${HIGHLIGHT_PREFIX}${type})`;
+      return htmlAttributes ? onPage(htmlAttributes, highlight) : highlight;
+    });
+  const selectionSelectors = (htmlAttributes = '') =>
+    TYPES.map((type) =>
+      onPage(`${htmlAttributes}[${ACTIVE_TYPES_ATTRIBUTE}~='${type}']`, `[${SELECTION_GUARD_ATTRIBUTE}~='${type}']::selection`)
+    );
+  const variantRule = (htmlAttributes, declarations) => `
+    ${[
+      ...highlightSelectors(htmlAttributes),
+      ...selectionSelectors(htmlAttributes),
+      onPage(htmlAttributes, `[${FIELD_MASK_ATTRIBUTE}]`),
+      onPage(htmlAttributes, `[${FIELD_MASK_ATTRIBUTE}]::selection`),
+    ].join(', ')} { ${declarations} }`;
   const SHADOW_STYLES = `
-    ${TYPES.map((type) => `::highlight(${HIGHLIGHT_PREFIX}${type})`).join(', ')} {
+    ${highlightSelectors().join(', ')} {
       color: transparent;
       -webkit-text-fill-color: transparent;
       text-shadow: ${BLUR};
       text-decoration: none;
     }
-    ${TYPES.map((type) => activeSelector(type, `[${SELECTION_GUARD_ATTRIBUTE}~='TYPE']::selection`)).join(', ')},
+    ${selectionSelectors().join(', ')},
     [${FIELD_MASK_ATTRIBUTE}]::selection {
       color: transparent !important;
       -webkit-text-fill-color: transparent !important;
@@ -56,9 +85,9 @@
       background-color: Highlight !important;
     }
     ${TYPES.map((type) =>
-      activeSelector(
-        type,
-        `svg text:is([${SELECTION_GUARD_ATTRIBUTE}~='TYPE'], :has([${SELECTION_GUARD_ATTRIBUTE}~='TYPE']))`
+      onPage(
+        `[${ACTIVE_TYPES_ATTRIBUTE}~='${type}']`,
+        `svg text:is([${SELECTION_GUARD_ATTRIBUTE}~='${type}'], :has([${SELECTION_GUARD_ATTRIBUTE}~='${type}']))`
       )
     ).join(', ')} {
       fill: #3c4043 !important;
@@ -71,26 +100,64 @@
       -webkit-text-fill-color: transparent !important;
       text-shadow: ${BLUR} !important;
       caret-color: #5f6368 !important;
-    }`;
+    }
+    ${variantRule(`[${STRENGTH_ATTRIBUTE}='light']`, `text-shadow: ${LIGHT_BLUR} !important;`)}
+    ${variantRule(`[${STRENGTH_ATTRIBUTE}='strong']`, `text-shadow: ${STRONG_BLUR} !important;`)}
+    ${variantRule(
+      `[${STYLE_ATTRIBUTE}='bar']`,
+      `text-shadow: ${NO_SHADOW} !important; background-color: #0F1B2D !important;`
+    )}`;
 
   // Fail closed: hide everything with the defaults until stored settings arrive.
   let settings = Settings.DEFAULTS;
+  let customPattern = null;
+  let customPatternKey = '';
+  // Whether this page is being protected at all (on, and allowed on this site). While not,
+  // the page isn't watched or scanned, and nothing is painted over.
+  let protecting = true;
+  // Paused on this tab from the popup; kept by the service worker, never in synced settings.
+  let paused = false;
+  let countTimer = null;
+  let lastReportedCounts = '';
+  // The page's own title, and the masked one this script last wrote (to tell the two apart).
+  let rawTitle = null;
+  let lastWrittenTitle = null;
   const highlights = new Map(TYPES.map((type) => [type, new Highlight()]));
   const rangesByTextNode = new Map();
   const shadowRoots = new Set();
   const shadowSheet = new CSSStyleSheet();
   shadowSheet.replaceSync(SHADOW_STYLES);
   const observer = new MutationObserver(handleMutations);
+  // Puts the whole-page blur back if the page removes it.
+  const wholePageObserver = new MutationObserver(() => {
+    const html = document.documentElement;
+    if (!html.hasAttribute(WHOLE_PAGE_ATTRIBUTE)) html.setAttribute(WHOLE_PAGE_ATTRIBUTE, '');
+  });
   let pruneTimer = null;
 
   /**
    * Summary: whether a data type should currently be hidden.
-   * Parameters: type — 'email' | 'phone' | 'card'.
+   * Parameters: type — one of PiiDetectors.TYPES, such as 'email' or 'apiKey'.
    * Returns: true when hiding is on overall and for this type.
    * Usage: isTypeActive('email') → false after the user unticks Emails in the popup.
    */
   function isTypeActive(type) {
-    return settings.enabled && settings.types[type];
+    return protecting && settings.types[type];
+  }
+
+  /**
+   * Summary: the host of the tab's top page, so frames follow the rules of the site they're shown on.
+   * Returns: a host such as "mail.example.com" or "localhost:3000" ('' for pages without one).
+   * Usage: isSiteActive(settings, topHost()).
+   */
+  function topHost() {
+    if (IS_TOP_FRAME) return location.host;
+    const origins = location.ancestorOrigins;
+    try {
+      return new URL(origins[origins.length - 1]).host;
+    } catch {
+      return location.host;
+    }
   }
 
   /**
@@ -98,7 +165,10 @@
    * Usage: called after settings change; ranges stay tracked, only their painting toggles.
    */
   function applyHighlightRegistry() {
-    document.documentElement.setAttribute(ACTIVE_TYPES_ATTRIBUTE, TYPES.filter(isTypeActive).join(' '));
+    const html = document.documentElement;
+    html.setAttribute(ACTIVE_TYPES_ATTRIBUTE, TYPES.filter(isTypeActive).join(' '));
+    html.setAttribute(STYLE_ATTRIBUTE, settings.style);
+    html.setAttribute(STRENGTH_ATTRIBUTE, settings.blurStrength);
     for (const [type, highlight] of highlights) {
       const name = HIGHLIGHT_PREFIX + type;
       if (isTypeActive(type)) {
@@ -153,7 +223,7 @@
     if (parent.tagName === 'TEXTAREA') maskTextField(parent);
     if (SKIPPED_PARENT_TAGS.has(parent.tagName)) return;
 
-    const matches = findMatches(node.data);
+    const matches = findMatches(node.data, customPattern);
     if (matches.length === 0) return;
 
     const entries = matches.map(({ type, start, end }) => {
@@ -173,7 +243,7 @@
    * Usage: maskTextField(emailInput) on page load, on every keystroke and when page code sets the value.
    */
   function maskTextField(field) {
-    const shouldMask = findMatches(field.value).some((match) => isTypeActive(match.type));
+    const shouldMask = findMatches(field.value, customPattern).some((match) => isTypeActive(match.type));
     field.toggleAttribute(FIELD_MASK_ATTRIBUTE, shouldMask);
   }
 
@@ -186,6 +256,7 @@
     if (shadowRoots.has(shadowRoot)) return;
     shadowRoots.add(shadowRoot);
     shadowRoot.adoptedStyleSheets = [...shadowRoot.adoptedStyleSheets, shadowSheet];
+    if (!protecting) return;
     observer.observe(shadowRoot, OBSERVER_OPTIONS);
     scanSubtree(shadowRoot);
   }
@@ -246,6 +317,7 @@
    */
   function pruneDetachedNodes() {
     pruneTimer = null;
+    scheduleCountReport();
     for (const node of rangesByTextNode.keys()) {
       if (!node.isConnected) forgetTextNode(node);
     }
@@ -281,6 +353,72 @@
       record.addedNodes.forEach(scanSubtree);
       if (record.removedNodes.length > 0) schedulePrune();
     }
+    if (IS_TOP_FRAME && document.title !== lastWrittenTitle) maskTitle();
+    scheduleCountReport();
+  }
+
+  /**
+   * Summary: how many values of each active type this frame is hiding right now.
+   * Returns: object like { email: 3, card: 1 } (empty when not protecting).
+   */
+  function countHidden() {
+    const counts = {};
+    if (!protecting) return counts;
+    for (const [type, highlight] of highlights) {
+      if (isTypeActive(type) && highlight.size > 0) counts[type] = highlight.size;
+    }
+    for (const field of allTextFields()) {
+      if (!field.hasAttribute(FIELD_MASK_ATTRIBUTE)) continue;
+      for (const { type } of findMatches(field.value, customPattern)) {
+        if (isTypeActive(type)) counts[type] = (counts[type] ?? 0) + 1;
+      }
+    }
+    return counts;
+  }
+
+  /**
+   * Summary: tells the service worker this frame's counts, at most once per short delay and only on change.
+   * Usage: called after anything that can change what is hidden; the popup shows the totals.
+   */
+  function scheduleCountReport() {
+    // A prerendered page isn't on screen yet; it reports once it is shown (see sayHello).
+    if (countTimer !== null || document.prerendering) return;
+    countTimer = setTimeout(() => {
+      countTimer = null;
+      const counts = countHidden();
+      const key = JSON.stringify(counts);
+      if (key === lastReportedCounts) return;
+      lastReportedCounts = key;
+      chrome.runtime.sendMessage({ type: 'frameCounts', counts }).catch(() => {});
+    }, COUNT_REPORT_DELAY_MS);
+  }
+
+  /**
+   * Summary: hides sensitive values in the tab title (top frame only), or puts the real title back.
+   * Usage: after the page changes its title, and whenever settings change. A title equal to the one this
+   *        script last wrote is its own, so writing it never loops.
+   */
+  function maskTitle() {
+    if (!IS_TOP_FRAME) return;
+    const current = document.title;
+    if (rawTitle === null || current !== lastWrittenTitle) rawTitle = current;
+    const wanted = protecting && settings.hideTitles ? maskText(rawTitle) : rawTitle;
+    lastWrittenTitle = wanted;
+    if (wanted !== current) document.title = wanted;
+  }
+
+  /**
+   * Summary: replaces each sensitive value of an active type in a string with dots.
+   * Parameters: text — any string.
+   * Returns: the string with matches replaced, e.g. "Inbox - ••••• - Mail".
+   */
+  function maskText(text) {
+    let masked = text;
+    const matches = findMatches(text, customPattern).filter((match) => isTypeActive(match.type));
+    for (const { start, end } of matches.reverse()) {
+      masked = masked.slice(0, start) + TITLE_MASK + masked.slice(end);
+    }
+    return masked;
   }
 
   /**
@@ -288,8 +426,11 @@
    * Parameters: event — input event, or the value-changed event from page-hooks.js.
    */
   function handleFieldEvent(event) {
+    if (!protecting) return;
     const field = event.composedPath()[0];
-    if (field instanceof Element && field.matches(TEXT_FIELD_SELECTOR)) maskTextField(field);
+    if (!(field instanceof Element) || !field.matches(TEXT_FIELD_SELECTOR)) return;
+    maskTextField(field);
+    scheduleCountReport();
   }
 
   /**
@@ -303,23 +444,159 @@
   }
 
   /**
+   * Summary: rebuilds the custom-words pattern when the user's words or their options change.
+   * Returns: true when the pattern changed, so the page must be rescanned.
+   * Usage: if (updateCustomPattern()) rescanEverything();
+   */
+  function updateCustomPattern() {
+    const { customWords, customWordsIgnoreCase, customWordsAsPatterns } = settings;
+    const key = JSON.stringify([customWords, customWordsIgnoreCase, customWordsAsPatterns]);
+    if (key === customPatternKey) return false;
+    customPatternKey = key;
+    customPattern = createCustomPattern(customWords, {
+      ignoreCase: customWordsIgnoreCase,
+      asPatterns: customWordsAsPatterns,
+    });
+    return true;
+  }
+
+  /**
+   * Summary: scans the whole page again, including every watched shadow root.
+   * Usage: after the custom words change, since what counts as a match changed.
+   */
+  function rescanEverything() {
+    scanSubtree(document.documentElement);
+    shadowRoots.forEach(scanSubtree);
+  }
+
+  /**
    * Summary: applies new settings to this page.
    * Parameters: nextSettings — complete settings object.
    * Usage: called once settings load and whenever they change.
    */
   function applySettings(nextSettings) {
     settings = nextSettings;
+    const patternChanged = updateCustomPattern();
+    scheduleCountReport();
+    if (shouldProtect() !== protecting) {
+      setProtecting(shouldProtect());
+      return;
+    }
     applyHighlightRegistry();
-    allTextFields().forEach(maskTextField);
+    maskTitle();
+    if (!protecting) return;
+    if (patternChanged) rescanEverything();
+    else allTextFields().forEach(maskTextField);
+  }
+
+  /**
+   * Summary: whether this page should be protected now: on, allowed on this site, and not paused.
+   * Returns: boolean.
+   */
+  function shouldProtect() {
+    return settings.enabled && !paused && isSiteActive(settings, topHost());
+  }
+
+  /**
+   * Summary: pauses or resumes this frame when the popup pauses or resumes the tab.
+   * Parameters: nextPaused — true while the tab is paused.
+   */
+  function applyPause(nextPaused) {
+    paused = nextPaused;
+    scheduleCountReport();
+    if (shouldProtect() !== protecting) setProtecting(shouldProtect());
+  }
+
+  /**
+   * Summary: handles messages from the service worker.
+   * Parameters: message — { type: 'pauseChanged', paused }.
+   */
+  function handleWorkerMessage(message) {
+    if (message.type === 'pauseChanged') applyPause(message.paused);
+    if (message.type === 'toggleWholePageBlur') toggleWholePageBlur();
+  }
+
+  /**
+   * Summary: blurs this frame's whole page, or removes that blur; works whatever the settings are.
+   * Usage: Alt+Shift+K or the popup's "Blur the whole page" button, via the service worker.
+   */
+  function toggleWholePageBlur() {
+    const html = document.documentElement;
+    if (html.hasAttribute(WHOLE_PAGE_ATTRIBUTE)) {
+      wholePageObserver.disconnect();
+      html.removeAttribute(WHOLE_PAGE_ATTRIBUTE);
+      return;
+    }
+    html.setAttribute(WHOLE_PAGE_ATTRIBUTE, '');
+    wholePageObserver.observe(html, { attributes: true, attributeFilter: [WHOLE_PAGE_ATTRIBUTE] });
+  }
+
+  /**
+   * Summary: tells the service worker the page started or stopped sharing its screen.
+   * Parameters: event — share-started or share-ended event from page-hooks.js.
+   */
+  function handleShareEvent(event) {
+    const message =
+      event.type === SHARE_STARTED_EVENT ? { type: 'shareStarted', host: topHost() } : { type: 'shareEnded' };
+    chrome.runtime.sendMessage(message).catch(() => {});
+  }
+
+  /**
+   * Summary: starts or stops protecting this page as a whole.
+   * Parameters: on — true to watch, scan and hide; false to stop all work and show everything.
+   * Usage: setProtecting(false) on a never-hide site; setProtecting(true) once it's removed from the list.
+   */
+  function setProtecting(on) {
+    protecting = on;
+    applyHighlightRegistry();
+    maskTitle();
+    if (on) {
+      observer.observe(document.documentElement, OBSERVER_OPTIONS);
+      shadowRoots.forEach((shadowRoot) => observer.observe(shadowRoot, OBSERVER_OPTIONS));
+      rescanEverything();
+      return;
+    }
+    observer.disconnect();
+    [...rangesByTextNode.keys()].forEach(forgetTextNode);
+    allTextFields().forEach((field) => field.removeAttribute(FIELD_MASK_ATTRIBUTE));
   }
 
   applyHighlightRegistry();
+  updateCustomPattern();
   scanSubtree(document.documentElement);
+  maskTitle();
   observer.observe(document.documentElement, OBSERVER_OPTIONS);
   document.addEventListener('input', handleFieldEvent, true);
   document.addEventListener(VALUE_CHANGED_EVENT, handleFieldEvent, true);
   document.addEventListener(SHADOW_ATTACHED_EVENT, handleShadowAttached, true);
+  document.addEventListener(SHARE_STARTED_EVENT, handleShareEvent, true);
+  document.addEventListener(SHARE_ENDED_EVENT, handleShareEvent, true);
 
   Settings.load().then(applySettings);
   Settings.onChange(applySettings);
+  chrome.runtime.onMessage.addListener(handleWorkerMessage);
+
+  /**
+   * Summary: tells the service worker this page is on screen in the tab, and takes on the tab's pause.
+   * Usage: when the page first shows, when a prerendered page is shown, and when the Back button brings
+   *        the page back from Chrome's back/forward cache (its script doesn't run again then, and a pause
+   *        it remembers may have ended while it was away).
+   */
+  function sayHello() {
+    lastReportedCounts = '';
+    scheduleCountReport();
+    chrome.runtime
+      .sendMessage({ type: 'frameHello', host: topHost() })
+      .then((reply) => applyPause(Boolean(reply?.paused)))
+      .catch(() => {});
+  }
+
+  if (document.prerendering) {
+    document.addEventListener('prerenderingchange', sayHello, { once: true });
+  } else {
+    sayHello();
+  }
+  window.addEventListener('pageshow', (event) => {
+    if (event.persisted) sayHello();
+  });
 })();

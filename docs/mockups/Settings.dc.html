@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Inkout settings</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#0B7A75}a:hover{color:#085E5A}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #F4F6F8; font-family: Manrope, system-ui, sans-serif; color: #0F1B2D; display: flex; flex-wrap: wrap; align-items: stretch">
+
+  <nav aria-label="Settings sections" style="flex: 1 1 220px; box-sizing: border-box; background: #FFFFFF; border-right: 1px solid #E3E7EC; padding: 24px 16px; display: flex; flex-direction: column; gap: 4px">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 0 8px 20px">
+      <svg width="30" height="30" viewBox="0 0 48 48" aria-hidden="true">
+        <rect x="1.5" y="1.5" width="45" height="45" rx="11" fill="#FFFFFF" stroke="#0F1B2D" stroke-width="3"></rect>
+        <rect x="11" y="11" width="26" height="5" rx="2.5" fill="#B8C1CC"></rect>
+        <path d="M12 25 L36 23" fill="none" stroke="#0F1B2D" stroke-width="8" stroke-linecap="round"></path>
+        <rect x="11" y="32" width="16" height="5" rx="2.5" fill="#B8C1CC"></rect>
+      </svg>
+      <span style="font-size: 17px; font-weight: 800">Inkout</span>
+    </div>
+    <a href="#hide" style="display: flex; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 10px; background: #E3F4F2; color: #0B5E5A; font-size: 14px; font-weight: 700; text-decoration: none">What to hide</a>
+    <a href="#words" style="display: flex; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 10px; color: #33435A; font-size: 14px; font-weight: 600; text-decoration: none">Custom words</a>
+    <a href="#sites" style="display: flex; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 10px; color: #33435A; font-size: 14px; font-weight: 600; text-decoration: none">Sites</a>
+    <a href="#look" style="display: flex; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 10px; color: #33435A; font-size: 14px; font-weight: 600; text-decoration: none">Appearance</a>
+    <a href="#keys" style="display: flex; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 10px; color: #33435A; font-size: 14px; font-weight: 600; text-decoration: none">Shortcuts</a>
+    <a href="#privacy" style="display: flex; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 10px; color: #33435A; font-size: 14px; font-weight: 600; text-decoration: none">Privacy</a>
+  </nav>
+
+  <main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; padding: 36px 32px 80px">
+    <div style="max-width: 880px; display: flex; flex-direction: column; gap: 24px">
+
+      <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between">
+        <div style="display: flex; flex-direction: column; gap: 4px">
+          <h1 style="margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -0.02em">Settings</h1>
+          <p style="margin: 0; font-size: 15px; color: #4A5462">Changes apply right away to every open tab.</p>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px; padding: 6px 6px 6px 16px; border-radius: 999px; background: {{masterPillBg}}">
+          <span style="font-size: 14px; font-weight: 800; color: {{masterColor}}">{{masterLabel}}</span>
+          <button type="button" aria-pressed="{{masterPressed}}" aria-label="Protection" onClick="{{toggleMaster}}" style="width: 56px; height: 44px; border: 0; background: transparent; padding: 0; display: flex; align-items: center; justify-content: center; cursor: pointer">
+            <span style="width: 48px; height: 28px; border-radius: 999px; background: {{masterTrack}}; position: relative; display: block"><span style="position: absolute; top: 3px; left: {{masterKnob}}; width: 22px; height: 22px; border-radius: 50%; background: #FFFFFF; display: block"></span></span>
+          </button>
+        </div>
+      </div>
+
+      <section id="hide" style="background: #FFFFFF; border-radius: 18px; padding: 24px; display: flex; flex-direction: column; gap: 18px">
+        <div style="display: flex; flex-direction: column; gap: 4px">
+          <h2 style="margin: 0; font-size: 20px; font-weight: 800">What to hide</h2>
+          <p style="margin: 0; font-size: 14px; color: #4A5462">The example under each one shows how it looks on a page with your current style.</p>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px">
+          <sc-for list="{{categories}}" as="item" hint-placeholder-count="7">
+            <div style="border: 1px solid #E3E7EC; border-radius: 14px; padding: 14px 10px 14px 16px; display: flex; flex-direction: column; gap: 10px">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px">
+                <div style="display: flex; align-items: center; gap: 8px">
+                  <span style="font-size: 15px; font-weight: 700">{{item.name}}</span>
+                  <sc-if value="{{item.isNew}}" hint-placeholder-val="{{ false }}">
+                    <span style="font-size: 11px; font-weight: 800; color: #7A3E00; background: #FDEBD3; border-radius: 999px; padding: 2px 8px">New</span>
+                  </sc-if>
+                </div>
+                <button type="button" aria-pressed="{{item.pressed}}" aria-label="{{item.name}}" onClick="{{item.toggle}}" style="width: 52px; height: 44px; border: 0; background: transparent; padding: 0; display: flex; align-items: center; justify-content: center; cursor: pointer">
+                  <span style="width: 40px; height: 24px; border-radius: 999px; background: {{item.track}}; position: relative; display: block"><span style="position: absolute; top: 3px; left: {{item.knob}}; width: 18px; height: 18px; border-radius: 50%; background: #FFFFFF; display: block"></span></span>
+                </button>
+              </div>
+              <span style="font-size: 13px; color: #4A5462; margin-top: -6px">{{item.desc}}</span>
+              <div style="background: #F4F6F8; border-radius: 10px; padding: 10px 12px; font-size: 13px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap">
+                <span style="color: #4A5462">{{item.lead}}</span>
+                <sc-if value="{{item.showLabel}}" hint-placeholder-val="{{ false }}">
+                  <span style="font-size: 12px; font-weight: 700; color: #33435A; background: #DDE3EA; border-radius: 6px; padding: 2px 8px">{{item.labelText}}</span>
+                </sc-if>
+                <sc-if value="{{item.showText}}" hint-placeholder-val="{{ true }}">
+                  <span style="font-family: 'IBM Plex Mono', monospace; font-weight: 500; filter: {{item.filter}}; background: {{item.bg}}; color: {{item.color}}; border-radius: 4px; padding: 0 2px">{{item.example}}</span>
+                </sc-if>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+
+      <section id="words" style="background: #FFFFFF; border-radius: 18px; padding: 24px; display: flex; flex-direction: column; gap: 16px">
+        <div style="display: flex; flex-direction: column; gap: 4px">
+          <h2 style="margin: 0; font-size: 20px; font-weight: 800">Custom words</h2>
+          <p style="margin: 0; font-size: 14px; color: #4A5462">Names, client names, project code names: anything you never want on a shared screen.</p>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end">
+          <label style="flex: 1 1 280px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700">
+            Add a word or phrase
+            <input type="text" placeholder="e.g. Project Falcon" style="height: 44px; box-sizing: border-box; border: 1px solid #CDD4DC; border-radius: 10px; padding: 0 12px; font: inherit; font-size: 14px; font-weight: 500">
+          </label>
+          <button type="button" style="height: 44px; padding: 0 20px; border: 0; border-radius: 10px; background: #0F1B2D; color: #FFFFFF; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer">Add</button>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px">
+          <sc-for list="{{words}}" as="word" hint-placeholder-count="3">
+            <span style="display: inline-flex; align-items: center; gap: 2px; padding-left: 12px; border-radius: 999px; background: #E8EEF5; font-size: 14px; font-weight: 600">
+              {{word.text}}
+              <button type="button" aria-label="{{word.removeLabel}}" style="width: 32px; height: 32px; border: 0; border-radius: 50%; background: transparent; color: #4A5462; display: flex; align-items: center; justify-content: center; cursor: pointer">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg>
+              </button>
+            </span>
+          </sc-for>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 20px; font-size: 14px">
+          <label style="display: flex; align-items: center; gap: 8px; min-height: 32px"><input type="checkbox" checked style="width: 18px; height: 18px; accent-color: #0B7A75"> Ignore upper and lower case</label>
+          <label style="display: flex; align-items: center; gap: 8px; min-height: 32px"><input type="checkbox" style="width: 18px; height: 18px; accent-color: #0B7A75"> Advanced: use patterns (regex)</label>
+        </div>
+      </section>
+
+      <section id="sites" style="background: #FFFFFF; border-radius: 18px; padding: 24px; display: flex; flex-direction: column; gap: 16px">
+        <h2 style="margin: 0; font-size: 20px; font-weight: 800">Sites</h2>
+        <fieldset style="margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 8px">
+          <legend style="padding: 0 0 8px; font-size: 14px; font-weight: 700">Where should Inkout hide things?</legend>
+          <label style="display: flex; align-items: center; gap: 10px; min-height: 40px; font-size: 14px"><input type="radio" name="scope" checked style="width: 18px; height: 18px; accent-color: #0B7A75"> On every site <span style="color: #4A5462">(recommended)</span></label>
+          <label style="display: flex; align-items: center; gap: 10px; min-height: 40px; font-size: 14px"><input type="radio" name="scope" style="width: 18px; height: 18px; accent-color: #0B7A75"> Only on sites I choose</label>
+        </fieldset>
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <span style="font-size: 14px; font-weight: 700">Never hide on</span>
+          <sc-for list="{{sites}}" as="site" hint-placeholder-count="2">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 6px 6px 14px; border: 1px solid #E3E7EC; border-radius: 12px">
+              <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px">{{site}}</span>
+              <button type="button" style="height: 36px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; font: inherit; font-size: 13px; font-weight: 700; color: #B42318; cursor: pointer">Remove</button>
+            </div>
+          </sc-for>
+          <span style="font-size: 13px; color: #4A5462">Tip: use “Pause on this site” in the toolbar popup to add the site you are on.</span>
+        </div>
+      </section>
+
+      <section id="look" style="background: #FFFFFF; border-radius: 18px; padding: 24px; display: flex; flex-direction: column; gap: 16px">
+        <div style="display: flex; flex-direction: column; gap: 4px">
+          <h2 style="margin: 0; font-size: 20px; font-weight: 800">Appearance</h2>
+          <p style="margin: 0; font-size: 14px; color: #4A5462">How hidden text looks on the page. Click one to try it on the examples above.</p>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px">
+          <sc-for list="{{styles}}" as="style" hint-placeholder-count="3">
+            <button type="button" aria-pressed="{{style.pressed}}" onClick="{{style.pick}}" style="text-align: left; border: 2px solid {{style.border}}; border-radius: 14px; background: #FFFFFF; padding: 14px 16px; font: inherit; color: #0F1B2D; display: flex; flex-direction: column; gap: 10px; cursor: pointer">
+              <span style="display: flex; justify-content: space-between; align-items: center; width: 100%">
+                <span style="font-size: 15px; font-weight: 800">{{style.name}}</span>
+                <span style="font-size: 12px; font-weight: 800; color: #0B7A75">{{style.badge}}</span>
+              </span>
+              <span style="background: #F4F6F8; border-radius: 8px; padding: 10px; font-size: 13px; display: flex; gap: 6px; align-items: center">
+                <span style="color: #4A5462">To:</span>
+                <span style="font-family: 'IBM Plex Mono', monospace; filter: {{style.filter}}; background: {{style.bg}}; color: {{style.color}}; border-radius: 4px; padding: 0 2px">{{style.preview}}</span>
+              </span>
+              <span style="font-size: 13px; color: #4A5462">{{style.desc}}</span>
+            </button>
+          </sc-for>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px">
+          <span style="font-size: 14px; font-weight: 700">Blur strength</span>
+          <div style="padding: 4px; border-radius: 12px; background: #F4F6F8; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; width: 300px">
+            <button type="button" aria-pressed="false" style="height: 36px; border: 0; border-radius: 9px; background: transparent; font: inherit; font-size: 13px; font-weight: 600; color: #4A5462; cursor: pointer">Light</button>
+            <button type="button" aria-pressed="true" style="height: 36px; border: 0; border-radius: 9px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(15,27,45,0.12); font: inherit; font-size: 13px; font-weight: 700; color: #0F1B2D; cursor: pointer">Medium</button>
+            <button type="button" aria-pressed="false" style="height: 36px; border: 0; border-radius: 9px; background: transparent; font: inherit; font-size: 13px; font-weight: 600; color: #4A5462; cursor: pointer">Strong</button>
+          </div>
+        </div>
+        <label style="display: flex; align-items: flex-start; gap: 10px; font-size: 14px; line-height: 1.45"><input type="checkbox" checked style="width: 18px; height: 18px; margin-top: 2px; accent-color: #0B7A75"> <span>Also hide them in tab titles <span style="color: #4A5462">(Gmail puts your email address in the tab title)</span></span></label>
+      </section>
+
+      <section id="keys" style="background: #FFFFFF; border-radius: 18px; padding: 24px; display: flex; flex-direction: column; gap: 12px">
+        <h2 style="margin: 0; font-size: 20px; font-weight: 800">Shortcuts</h2>
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 0; border-bottom: 1px solid #EEF1F4">
+          <span style="font-size: 14px">Turn protection on or off</span>
+          <span style="font-size: 13px; font-weight: 700; font-family: 'IBM Plex Mono', monospace">Alt + Shift + H</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 0">
+          <span style="font-size: 14px">Blur the whole page</span>
+          <span style="font-size: 13px; font-weight: 700; font-family: 'IBM Plex Mono', monospace">Alt + Shift + B</span>
+        </div>
+        <a href="#" style="font-size: 14px; font-weight: 700; text-decoration: none">Change shortcuts in Chrome</a>
+      </section>
+
+      <section id="privacy" style="background: #0F1B2D; color: #E8EEF5; border-radius: 18px; padding: 24px; display: flex; flex-direction: column; gap: 14px">
+        <div style="display: flex; align-items: center; gap: 12px">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#5EDDD3" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
+          <h2 style="margin: 0; font-size: 20px; font-weight: 800">Everything stays on your device</h2>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px">
+          <span style="padding: 12px 14px; border-radius: 12px; background: #17263B; font-size: 14px; font-weight: 600">No account</span>
+          <span style="padding: 12px 14px; border-radius: 12px; background: #17263B; font-size: 14px; font-weight: 600">No analytics or tracking</span>
+          <span style="padding: 12px 14px; border-radius: 12px; background: #17263B; font-size: 14px; font-weight: 600">No data sent anywhere</span>
+        </div>
+        <a href="#" style="font-size: 14px; font-weight: 700; color: #5EDDD3; text-decoration: none">Read the privacy policy</a>
+      </section>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":2500}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { master: true, style: 'blur', off: { ip: true } };
+  }
+  renderVals() {
+    const { master, style, off } = this.state;
+    const toggleSwitch = (on) => ({
+      pressed: on ? 'true' : 'false',
+      track: on ? '#0B7A75' : '#B8C1CC',
+      knob: on ? '19px' : '3px',
+    });
+    const maskFor = (masked, styleId) => {
+      if (!masked) return { filter: 'none', bg: 'transparent', color: '#0F1B2D', showLabel: false, showText: true };
+      if (styleId === 'bar') return { filter: 'none', bg: '#0F1B2D', color: 'transparent', showLabel: false, showText: true };
+      if (styleId === 'label') return { filter: 'none', bg: 'transparent', color: '#0F1B2D', showLabel: true, showText: false };
+      return { filter: 'blur(4px)', bg: 'transparent', color: '#0F1B2D', showLabel: false, showText: true };
+    };
+    const categories = [
+      { id: 'email', name: 'Email addresses', desc: 'Any address, in text and form fields', lead: 'From:', example: 'priya.sharma@example.com', labelText: 'email hidden' },
+      { id: 'phone', name: 'Phone numbers', desc: 'International formats, with or without a country code', lead: 'Call', example: '+91 98765 43210', labelText: 'phone hidden' },
+      { id: 'card', name: 'Card numbers', desc: 'Checked so random numbers are left alone', lead: 'Card', example: '4111 1111 1111 1111', labelText: 'card hidden' },
+      { id: 'keys', name: 'API keys & tokens', desc: 'GitHub, AWS, Stripe, OpenAI and similar', lead: 'Token', example: 'ghp_8Hk2Qz7WmN4xT1', labelText: 'key hidden', isNew: true },
+      { id: 'iban', name: 'Bank account numbers', desc: 'The international IBAN format', lead: 'IBAN', example: 'DE89 3704 0044 0532 0130 00', labelText: 'account hidden', isNew: true },
+      { id: 'ip', name: 'IP addresses', desc: 'Off by default: common in dev tools', lead: 'Server', example: '192.168.1.24', labelText: 'IP hidden', isNew: true },
+    ];
+    const styleOptions = [
+      { id: 'blur', name: 'Blur', desc: 'Soft and clearly hidden. The default.' },
+      { id: 'bar', name: 'Solid bar', desc: 'Like a redacted document. Strongest.' },
+    ];
+    return {
+      masterLabel: master ? 'Protection on' : 'Protection off',
+      masterColor: master ? '#0B5E5A' : '#7A3E00',
+      masterPillBg: master ? '#E3F4F2' : '#FDEBD3',
+      masterPressed: master ? 'true' : 'false',
+      masterTrack: master ? '#0B7A75' : '#B8C1CC',
+      masterKnob: master ? '23px' : '3px',
+      toggleMaster: () => this.setState({ master: !this.state.master }),
+      categories: categories.map((item) => {
+        const on = !off[item.id];
+        return {
+          ...item,
+          isNew: Boolean(item.isNew),
+          ...toggleSwitch(on),
+          ...maskFor(master && on, style),
+          toggle: () => this.setState({ off: { ...this.state.off, [item.id]: on } }),
+        };
+      }),
+      words: ['Project Falcon', 'Acme Corp', 'Rahul Verma'].map((text) => ({ text, removeLabel: 'Remove ' + text })),
+      sites: ['localhost:3000', 'docs.internal.example'],
+      styles: styleOptions.map((option) => {
+        const selected = option.id === style;
+        const mask = maskFor(true, option.id);
+        return {
+          ...option,
+          pressed: selected ? 'true' : 'false',
+          border: selected ? '#0B7A75' : '#E3E7EC',
+          badge: selected ? 'Selected' : '',
+          filter: mask.filter,
+          bg: mask.bg,
+          color: mask.color,
+          preview: 'priya.sharma@example.com',
+          pick: () => this.setState({ style: option.id }),
+        };
+      }),
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Popup B — Control panel</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#0B7A75}a:hover{color:#085E5A}
+</style>
+</helmet>
+<div style="width: 360px; height: 600px; box-sizing: border-box; background: #FFFFFF; font-family: Manrope, system-ui, sans-serif; color: #0F1B2D; display: flex; flex-direction: column">
+  <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 14px 18px; border-bottom: 1px solid #E3E7EC">
+    <div style="display: flex; align-items: center; gap: 10px">
+      <svg width="28" height="28" viewBox="0 0 48 48" aria-hidden="true">
+        <rect x="1.5" y="1.5" width="45" height="45" rx="11" fill="#FFFFFF" stroke="#0F1B2D" stroke-width="3"></rect>
+        <rect x="11" y="11" width="26" height="5" rx="2.5" fill="#B8C1CC"></rect>
+        <path d="M12 25 L36 23" fill="none" stroke="#0F1B2D" stroke-width="8" stroke-linecap="round"></path>
+        <rect x="11" y="32" width="16" height="5" rx="2.5" fill="#B8C1CC"></rect>
+      </svg>
+      <div style="display: flex; flex-direction: column">
+        <span style="font-size: 15px; font-weight: 800">Inkout</span>
+        <span style="font-size: 12px; font-weight: 700; color: #0B7A75">Protection on</span>
+      </div>
+    </div>
+    <button type="button" aria-pressed="true" aria-label="Protection" style="width: 56px; height: 44px; border: 0; background: transparent; padding: 0; display: flex; align-items: center; justify-content: center; cursor: pointer">
+      <span style="width: 48px; height: 28px; border-radius: 999px; background: #0B7A75; position: relative; display: block"><span style="position: absolute; top: 3px; left: 23px; width: 22px; height: 22px; border-radius: 50%; background: #FFFFFF; display: block"></span></span>
+    </button>
+  </div>
+
+  <div style="margin: 10px 16px 4px; padding: 10px 14px; border-radius: 14px; background: #F4F6F8; display: flex; align-items: center; justify-content: space-between; gap: 10px">
+    <div style="display: flex; align-items: center; gap: 10px; min-width: 0">
+      <div style="width: 32px; height: 32px; border-radius: 9px; background: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; color: #33435A">M</div>
+      <div style="display: flex; flex-direction: column; min-width: 0">
+        <span style="font-size: 14px; font-weight: 700">mail.google.com</span>
+        <span style="font-size: 12px; color: #4A5462">14 items hidden on this tab</span>
+      </div>
+    </div>
+    <button type="button" style="height: 36px; padding: 0 12px; border: 1px solid #CDD4DC; border-radius: 10px; background: #FFFFFF; font: inherit; font-size: 13px; font-weight: 700; color: #0F1B2D; cursor: pointer">Pause here</button>
+  </div>
+
+  <div style="padding: 6px 18px 2px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #5B6573">What to hide</div>
+  <div style="display: flex; flex-direction: column; padding: 0 8px">
+    <sc-for list="{{rows}}" as="row" hint-placeholder-count="6">
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 2px 6px 2px 10px; min-height: 44px">
+        <div style="display: flex; flex-direction: column">
+          <span style="font-size: 14px; font-weight: 600">{{row.name}}</span>
+          <span style="font-size: 12px; color: #4A5462">{{row.sub}}</span>
+        </div>
+        <button type="button" aria-pressed="{{row.pressed}}" aria-label="{{row.name}}" style="width: 52px; height: 44px; border: 0; background: transparent; padding: 0; display: flex; align-items: center; justify-content: center; cursor: pointer">
+          <span style="width: 40px; height: 24px; border-radius: 999px; background: {{row.track}}; position: relative; display: block"><span style="position: absolute; top: 3px; left: {{row.knob}}; width: 18px; height: 18px; border-radius: 50%; background: #FFFFFF; display: block"></span></span>
+        </button>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="padding: 6px 18px 4px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #5B6573">Hide style</div>
+  <div style="margin: 0 16px; padding: 4px; border-radius: 12px; background: #F4F6F8; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px">
+    <button type="button" aria-pressed="true" style="height: 36px; border: 0; border-radius: 9px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(15,27,45,0.12); font: inherit; font-size: 13px; font-weight: 700; color: #0F1B2D; cursor: pointer">Blur</button>
+    <button type="button" aria-pressed="false" style="height: 36px; border: 0; border-radius: 9px; background: transparent; font: inherit; font-size: 13px; font-weight: 600; color: #4A5462; cursor: pointer">Solid bar</button>
+    <button type="button" aria-pressed="false" style="height: 36px; border: 0; border-radius: 9px; background: transparent; font: inherit; font-size: 13px; font-weight: 600; color: #4A5462; cursor: pointer">Label</button>
+  </div>
+
+  <div style="margin-top: auto; padding: 10px 18px; border-top: 1px solid #E3E7EC; display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: #4A5462">
+    <span>Toggle: <strong style="color: #0F1B2D">Alt + Shift + H</strong></span>
+    <a href="#" style="font-weight: 700; text-decoration: none">All settings</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":360,"height":600}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const rows = [
+      { name: 'Email addresses', sub: '9 on this page', on: true },
+      { name: 'Phone numbers', sub: '3 on this page', on: true },
+      { name: 'Card numbers', sub: '2 on this page', on: true },
+      { name: 'API keys & tokens', sub: 'None on this page', on: true },
+      { name: 'Bank account numbers', sub: 'IBAN format', on: true },
+      { name: 'Custom words', sub: '3 words', on: false },
+    ];
+    return {
+      rows: rows.map((row) => ({
+        ...row,
+        pressed: row.on ? 'true' : 'false',
+        track: row.on ? '#0B7A75' : '#B8C1CC',
+        knob: row.on ? '19px' : '3px',
+      })),
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -89,6 +89,11 @@ class Tab {
       this.prepareSession(child).catch(() => {});
       return;
     }
+    // An out-of-process frame's session ends when its page navigates away.
+    if (message.method === 'Target.detachedFromTarget' && message.params.sessionId !== this.sessionId) {
+      this.frameSessions.delete(message.params.sessionId);
+      return;
+    }
     if (!this.frameSessions.has(message.sessionId)) return;
     if (message.method === 'Runtime.executionContextCreated') {
       const { id, name, auxData } = message.params.context;
@@ -111,6 +116,8 @@ class Tab {
    * Parameters: url — page to open.
    */
   async goto(url) {
+    // A background tab's timers are slowed down; the page under test should run like a visible one.
+    await this.chrome.send('Page.bringToFront', {}, this.sessionId);
     const loaded = this.chrome.waitFor('Page.loadEventFired', (m) => m.sessionId === this.sessionId);
     const { frameId } = await this.chrome.send('Page.navigate', { url }, this.sessionId);
     this.mainFrameId = frameId;
@@ -145,16 +152,17 @@ class Tab {
 
   /**
    * Summary: evaluates JavaScript in the page's own world or the extension's content-script world.
-   * Parameters: expression — code (may be async); options.world — 'main' | 'isolated'; options.frameId — default main frame.
+   * Parameters: expression — code (may be async); options.world — 'main' | 'isolated'; options.frameId — default main frame;
+   *   options.userGesture — run as if the user clicked (needed for screen sharing).
    * Returns: Promise of the JSON value the expression produced.
    * Usage: await tab.evaluate('CSS.highlights.size', { world: 'isolated' });
    */
-  async evaluate(expression, { world = 'main', frameId = this.mainFrameId } = {}) {
+  async evaluate(expression, { world = 'main', frameId = this.mainFrameId, userGesture = false } = {}) {
     const context = this.contexts.get(frameId)?.[world];
     if (!context) throw new Error(`No ${world} world for frame ${frameId}`);
     const result = await this.chrome.send(
       'Runtime.evaluate',
-      { expression, contextId: context.id, returnByValue: true, awaitPromise: true },
+      { expression, contextId: context.id, returnByValue: true, awaitPromise: true, userGesture },
       context.sessionId
     );
     if (result.exceptionDetails) {
@@ -166,13 +174,14 @@ class Tab {
   /**
    * Summary: the exact strings the extension is currently hiding in a frame, per type.
    * Parameters: frameId — default main frame.
-   * Returns: Promise of { email: [...], phone: [...], card: [...] } (only types currently shown as hidden).
+   * Returns: Promise of { email: [...], phone: [...], card: [...] } (only types with something hidden right now).
    */
   hiddenText(frameId) {
     return this.evaluate(
       `(() => {
         const result = {};
         for (const [name, highlight] of CSS.highlights) {
+          if (highlight.size === 0) continue;
           result[name.replace('privacy-guard-', '')] = [...highlight].map((range) => range.toString()).sort();
         }
         return result;
@@ -196,6 +205,8 @@ class Tab {
    * Returns: Promise of { width, height, pixels } (RGBA bytes).
    */
   async screenshot(rect) {
+    // Chrome doesn't draw background tabs, so their screenshots never arrive.
+    await this.chrome.send('Page.bringToFront', {}, this.sessionId);
     const { data } = await this.chrome.send(
       'Page.captureScreenshot',
       { format: 'png', clip: { ...rect, scale: 1 }, captureBeyondViewport: true },

@@ -1,14 +1,17 @@
 // Runs in the page's own JavaScript world ("world": "MAIN"), before any page script.
-// The content script lives in an isolated world and cannot see two things, so they are
+// The content script lives in an isolated world and cannot see these things, so they are
 // announced to it as DOM events:
-//   - a field's value set by page code (no input event fires), and
-//   - a shadow root attached after its host is already on the page (no mutation fires).
+//   - a field's value set by page code (no input event fires),
+//   - a shadow root attached after its host is already on the page (no mutation fires), and
+//   - the page starting or stopping a screen share (for presenter mode).
 (function () {
   'use strict';
 
   // Keep these names in sync with content.js.
   const VALUE_CHANGED_EVENT = 'inkout:value-changed';
   const SHADOW_ATTACHED_EVENT = 'inkout:shadow-attached';
+  const SHARE_STARTED_EVENT = 'inkout:share-started';
+  const SHARE_ENDED_EVENT = 'inkout:share-ended';
 
   /**
    * Summary: fires a non-bubbling event that crosses shadow boundaries, for the content script's capture listener.
@@ -36,4 +39,40 @@
     announce(this, SHADOW_ATTACHED_EVENT);
     return shadowRoot;
   };
+
+  // A share ends when the user stops it in Chrome's own bar ("ended" fires) or when the page
+  // stops the video track itself, as meeting sites' Stop buttons do ("ended" doesn't fire then).
+  // Sites switch what they share by starting a new share before stopping the old one, so the page
+  // counts as sharing until its last shared track ends.
+  const sharedTracks = new Set();
+
+  /**
+   * Summary: forgets one shared track, and announces the end of sharing once none is left.
+   * Parameters: track — a shared video track that ended or was stopped.
+   */
+  function endShare(track) {
+    if (!sharedTracks.delete(track)) return;
+    if (sharedTracks.size === 0) announce(document, SHARE_ENDED_EVENT);
+  }
+
+  if (typeof MediaDevices === 'function' && MediaDevices.prototype.getDisplayMedia) {
+    const originalGetDisplayMedia = MediaDevices.prototype.getDisplayMedia;
+    MediaDevices.prototype.getDisplayMedia = async function getDisplayMedia(...args) {
+      const stream = await originalGetDisplayMedia.apply(this, args);
+      const [track] = stream.getVideoTracks();
+      if (track) {
+        sharedTracks.add(track);
+        track.addEventListener('ended', () => endShare(track), { once: true });
+        if (sharedTracks.size === 1) announce(document, SHARE_STARTED_EVENT);
+      }
+      return stream;
+    };
+
+    const originalStop = MediaStreamTrack.prototype.stop;
+    MediaStreamTrack.prototype.stop = function stop(...args) {
+      const result = originalStop.apply(this, args);
+      endShare(this);
+      return result;
+    };
+  }
 })();

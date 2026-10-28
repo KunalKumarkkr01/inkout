@@ -1,6 +1,6 @@
 const { describe, test } = require('node:test');
 const assert = require('node:assert/strict');
-const { findMatches, isLuhnValid } = require('../src/detectors.js');
+const { findMatches, isLuhnValid, createCustomPattern, TYPES } = require('../src/detectors.js');
 
 // Adversarial inputs must finish well inside one frame budget so a page never freezes.
 const SLOW_INPUT_LIMIT_MS = 250;
@@ -135,7 +135,7 @@ describe('phone numbers', () => {
   });
 
   test('ignores IPv4 addresses (they have their own category)', () => {
-    assert.deepEqual(found('Server 192.168.100.200'), []);
+    assert.equal(found('Server 192.168.100.200').some((match) => match.startsWith('phone:')), false);
   });
 
   test('ignores prices with thousands separators', () => {
@@ -232,6 +232,10 @@ describe('speed on hostile input', () => {
     'digits separated by spaces': '1 '.repeat(50_000),
     'digits separated by dots': '1.'.repeat(50_000),
     'one megabyte of mixed text': 'Hello priya@example.com, call +91 98765 43210. '.repeat(20_000),
+    'long run of capital letters': 'A'.repeat(100_000),
+    'repeated token prefixes': 'eyJ'.repeat(30_000),
+    'repeated bank account prefixes': 'DE89 '.repeat(20_000),
+    'repeated dotted numbers': '10.0.0.'.repeat(20_000),
   };
 
   for (const [name, text] of Object.entries(hostileInputs)) {
@@ -240,4 +244,126 @@ describe('speed on hostile input', () => {
       assert.ok(ms < SLOW_INPUT_LIMIT_MS, `${name} took ${ms.toFixed(0)} ms`);
     });
   }
+});
+
+describe('detection order', () => {
+  test('earlier types win overlaps, in this order', () => {
+    assert.deepEqual(TYPES, ['email', 'apiKey', 'iban', 'card', 'phone', 'ip', 'custom']);
+  });
+});
+
+describe('API keys and tokens', () => {
+  // Built from pieces so no real-looking secret sits in the source.
+  const keys = {
+    'GitHub token': 'ghp' + '_' + 'A'.repeat(36),
+    'GitHub OAuth token': 'gho' + '_' + 'b'.repeat(36),
+    'GitHub fine-grained token': 'github' + '_pat_' + 'C1_'.repeat(27) + 'D',
+    'AWS access key': 'AK' + 'IA' + 'A'.repeat(16),
+    'Stripe secret key': 'sk' + '_live_' + 'A'.repeat(24),
+    'Stripe restricted key': 'rk' + '_test_' + 'z9'.repeat(10),
+    'Slack token': 'xox' + 'b-' + '1234567890-abcdef',
+    'Google API key': 'AI' + 'za' + 'A'.repeat(35),
+    'OpenAI-style key': 'sk-' + 'proj-' + 'A'.repeat(24),
+    'Anthropic-style key': 'sk-' + 'ant-' + 'x'.repeat(30),
+    JWT: 'eyJabcdefgh.eyJabcdefgh.abcdefghij',
+  };
+
+  for (const [name, key] of Object.entries(keys)) {
+    test(`${name} is found`, () => {
+      assert.deepEqual(found(`token: ${key} here`), [`apiKey:${key}`]);
+    });
+  }
+
+  test('look-alikes are not keys', () => {
+    assert.deepEqual(found('ghp_short skeleton-key-123 task-management'), []);
+  });
+
+  test('a token with extra characters glued on is not cut in half', () => {
+    const tooLong = 'ghp' + '_' + 'A'.repeat(40);
+    assert.equal(found(tooLong).some((m) => m.startsWith('apiKey:')), false);
+  });
+});
+
+describe('bank account numbers (IBAN)', () => {
+  for (const iban of ['DE89 3704 0044 0532 0130 00', 'GB82WEST12345698765432', 'FR14 2004 1010 0505 0001 3M02 606']) {
+    test(`${iban} is found`, () => {
+      assert.deepEqual(found(`Pay to ${iban} today`), [`iban:${iban}`]);
+    });
+  }
+
+  test('a wrong check digit is not an IBAN', () => {
+    assert.equal(found('DE89 3704 0044 0532 0130 01').some((m) => m.startsWith('iban:')), false);
+  });
+
+  test('too short is not an IBAN', () => {
+    assert.deepEqual(found('AB12 CDEF'), []);
+  });
+});
+
+describe('IP addresses', () => {
+  test('IPv4 addresses are found', () => {
+    assert.deepEqual(found('Server 192.168.1.24 and 10.0.0.1.'), ['ip:192.168.1.24', 'ip:10.0.0.1']);
+  });
+
+  test('out-of-range or short dotted numbers are not IPs', () => {
+    assert.deepEqual(found('256.1.1.1 and 1.2.3'), []);
+  });
+
+  test('an IP is reported as an IP, not a phone', () => {
+    assert.deepEqual(found('Phone 192.168.100.200'), ['ip:192.168.100.200']);
+  });
+});
+
+describe('custom words', () => {
+  /**
+   * Summary: like found(), but scanning with a custom-words pattern too.
+   * Parameters: text — the string to scan; pattern — from createCustomPattern.
+   * Returns: array like ["custom:Project Falcon"].
+   * Usage: foundCustom('re: falcon', createCustomPattern(['falcon'], options)).
+   */
+  function foundCustom(text, pattern) {
+    return findMatches(text, pattern).map((m) => `${m.type}:${text.slice(m.start, m.end)}`);
+  }
+
+  test('a phrase is found ignoring upper and lower case', () => {
+    const pattern = createCustomPattern(['Project Falcon'], { ignoreCase: true, asPatterns: false });
+    assert.deepEqual(foundCustom('re: project falcon kickoff', pattern), ['custom:project falcon']);
+  });
+
+  test('a phrase inside a longer word is not found', () => {
+    const pattern = createCustomPattern(['Project Falcon'], { ignoreCase: true, asPatterns: false });
+    assert.deepEqual(foundCustom('ProjectFalconX and Project FalconX', pattern), []);
+  });
+
+  test('case matters when ignoreCase is off', () => {
+    const pattern = createCustomPattern(['Falcon'], { ignoreCase: false, asPatterns: false });
+    assert.deepEqual(foundCustom('falcon Falcon', pattern), ['custom:Falcon']);
+  });
+
+  test('regex characters in plain words are matched literally', () => {
+    const pattern = createCustomPattern(['a.b (x)'], { ignoreCase: true, asPatterns: false });
+    assert.deepEqual(foundCustom('axb x and a.b (x) yes', pattern), ['custom:a.b (x)']);
+  });
+
+  test('patterns are used as regular expressions', () => {
+    const pattern = createCustomPattern([String.raw`acme\d+`], { ignoreCase: false, asPatterns: true });
+    assert.deepEqual(foundCustom('order acme42 shipped', pattern), ['custom:acme42']);
+  });
+
+  test('an invalid pattern gives no pattern at all', () => {
+    assert.equal(createCustomPattern(['(unclosed'], { ignoreCase: true, asPatterns: true }), null);
+  });
+
+  test('an empty list gives no pattern', () => {
+    assert.equal(createCustomPattern([], { ignoreCase: true, asPatterns: false }), null);
+  });
+
+  test('patterns that match nothing at all are dropped', () => {
+    const pattern = createCustomPattern(['a*', 'zz'], { ignoreCase: false, asPatterns: true });
+    assert.deepEqual(foundCustom('bbb zz', pattern), ['custom:zz']);
+  });
+
+  test('without a custom pattern nothing custom is found', () => {
+    assert.deepEqual(foundCustom('Project Falcon', null), []);
+  });
 });

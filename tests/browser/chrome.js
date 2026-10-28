@@ -151,6 +151,8 @@ async function launchChrome(chromePath) {
       '--disable-background-networking',
       '--disable-sync',
       '--window-size=1280,900',
+      // Lets a page share its own tab without the picker, for the presenter-mode tests.
+      '--auto-accept-this-tab-capture',
       // CI runners restrict the user namespaces Chrome's sandbox needs; the profile is throwaway.
       ...(process.env.CI && process.platform === 'linux' ? ['--no-sandbox'] : []),
       'about:blank',
