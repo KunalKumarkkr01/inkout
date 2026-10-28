@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Inkout: share your screen, not your inbox</title>
+    <meta name="description" content="Inkout is a free Chrome extension that blurs email addresses, phone numbers, card numbers and API keys on every website while you share your screen." />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="favicon.png" />
+    <link rel="stylesheet" href="style.css" />
+    <script src="main.js"></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="site-header">
+      <div class="shell header-row">
+        <a class="brand" href="./" aria-label="Inkout home">
+          <svg width="32" height="32" viewBox="0 0 48 48" aria-hidden="true">
+            <rect x="1.5" y="1.5" width="45" height="45" rx="11" fill="#FFFFFF" stroke="#0F1B2D" stroke-width="3" />
+            <rect x="11" y="11" width="26" height="5" rx="2.5" fill="#B8C1CC" />
+            <path d="M12 25 L36 23" fill="none" stroke="#0F1B2D" stroke-width="8" stroke-linecap="round" />
+            <rect x="11" y="32" width="16" height="5" rx="2.5" fill="#B8C1CC" />
+          </svg>
+          Inkout
+        </a>
+        <nav aria-label="Main">
+          <a href="#hides">What it hides</a>
+          <a href="#presenter">Presenter mode</a>
+          <a href="#privacy">Privacy</a>
+          <a href="https://github.com/KunalKumarkkr01/inkout">Source code</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="shell hero">
+        <h1>Share your screen, not your inbox.</h1>
+        <div class="hero-copy">
+          <p class="lead">Inkout is a free Chrome extension that blurs email addresses, phone numbers, card numbers and API keys on every website, so they never reach the people on your call.</p>
+          <div class="cta">
+            <span class="store-button" aria-disabled="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2" /><circle cx="12" cy="12" r="4" fill="currentColor" /></svg>
+              Coming soon to the Chrome Web Store
+            </span>
+            <a class="text-button" href="https://github.com/KunalKumarkkr01/inkout#install">Install it from GitHub today</a>
+          </div>
+          <p class="fine">Free, no account, nothing leaves your device.</p>
+        </div>
+
+        <figure class="call" data-inkout="on" aria-labelledby="call-caption">
+          <div class="call-bar">
+            <span class="presenting"><span class="live-dot" aria-hidden="true"></span>You are presenting</span>
+            <button type="button" class="ink-switch" role="switch" aria-checked="true" id="ink-switch">
+              <span class="ink-switch-track" aria-hidden="true"><span class="ink-switch-knob"></span></span>
+              <span class="ink-switch-label">Inkout</span>
+            </button>
+          </div>
+          <div class="call-stage">
+            <div class="shared-screen">
+              <div class="mail-top"><span class="mail-name">Mail</span><span class="v">priya.sharma@example.com</span></div>
+              <div class="mail-body">
+                <ul class="mail-list">
+                  <li class="current"><b>Rahul Verma</b><span class="v">rahul.verma@example.org</span><span>Vendor payment details</span></li>
+                  <li><b>Meera Iyer</b><span class="v">meera.iyer@example.net</span><span>Call me on <span class="v">+91 99887 66554</span></span></li>
+                  <li><b>Acme Billing</b><span class="v">billing@acme.example</span><span>Your receipt</span></li>
+                </ul>
+                <div class="mail-open">
+                  <p class="mail-subject">Vendor payment details</p>
+                  <p>Hi Priya, the details for this month's invoice. Call me on <span class="v">+91 98765 43210</span> if anything looks off.</p>
+                  <dl>
+                    <dt>Bank account</dt><dd class="v">DE89 3704 0044 0532 0130 00</dd>
+                    <dt>Card</dt><dd class="v">4111 1111 1111 1111</dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+            <ul class="tiles" aria-label="People on the call">
+              <li><span class="face">AN</span>Arjun</li>
+              <li><span class="face">MI</span>Meera</li>
+              <li><span class="face">KM</span>Kabir</li>
+            </ul>
+          </div>
+          <figcaption id="call-caption">What your call sees. Switch Inkout off to see what it would have seen.</figcaption>
+        </figure>
+      </section>
+
+      <section class="shell section" id="hides" aria-labelledby="hides-title">
+        <div class="section-head">
+          <h2 id="hides-title">What it hides</h2>
+          <p>Everything is on from the first page you open. Each type can be switched off in settings.</p>
+        </div>
+        <table class="types">
+          <thead>
+            <tr><th scope="col">Type</th><th scope="col">For example</th><th scope="col">On your shared screen</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Email addresses</th><td>priya.sharma@example.com</td><td><span class="v on">priya.sharma@example.com</span></td></tr>
+            <tr><th scope="row">Phone numbers, any country</th><td>+91 98765 43210</td><td><span class="v on">+91 98765 43210</span></td></tr>
+            <tr><th scope="row">Card numbers</th><td>4111 1111 1111 1111</td><td><span class="v on">4111 1111 1111 1111</span></td></tr>
+            <tr><th scope="row">API keys and tokens</th><td>ghp_8Hk2Qz7WmN4xT1…</td><td><span class="v on">ghp_8Hk2Qz7WmN4xT1</span></td></tr>
+            <tr><th scope="row">Bank account numbers (IBAN)</th><td>DE89 3704 0044 0532 0130 00</td><td><span class="v on">DE89 3704 0044 0532 0130 00</span></td></tr>
+            <tr><th scope="row">Your own words</th><td>Project Falcon</td><td><span class="v on">Project Falcon</span></td></tr>
+            <tr><th scope="row">IP addresses <span class="muted">(off unless you turn it on)</span></th><td>192.168.1.24</td><td><span class="v on">192.168.1.24</span></td></tr>
+          </tbody>
+        </table>
+        <p class="note">It also covers text you type into forms, tab titles, embedded frames and web components, and keeps hidden text hidden when you select it.</p>
+      </section>
+
+      <section class="shell section split" id="presenter" aria-labelledby="presenter-title">
+        <div>
+          <h2 id="presenter-title">It notices when you start presenting</h2>
+          <p>When a tab starts sharing your screen in Meet, Teams, Zoom or another meeting site on the web, Inkout switches protection on if it was off, and ends any pause you forgot about.</p>
+          <p>Something unexpected on screen? <kbd>Alt</kbd> <kbd>Shift</kbd> <kbd>K</kbd> blurs the whole page at once. Press it again to bring it back.</p>
+          <p>The toolbar button shows how much is hidden on the tab you're on, and a badge tells you if protection is off or paused before you share.</p>
+        </div>
+        <img class="popup-shot" src="images/popup.png" width="360" height="546" alt="The Inkout toolbar popup: protection is on, 15 items hidden on mail.example.test, with a Pause on this site button." loading="lazy" />
+      </section>
+
+      <section class="shell section" aria-labelledby="steps-title">
+        <h2 id="steps-title">Set it up once</h2>
+        <ol class="steps">
+          <li><b>Add it to Chrome.</b> It's on straight away, on every site.</li>
+          <li><b>Pin it to the toolbar.</b> You'll see at a glance whether it's on.</li>
+          <li><b>Share as usual.</b> Inkout does the rest, call after call.</li>
+        </ol>
+      </section>
+
+      <section class="privacy" id="privacy" aria-labelledby="privacy-title">
+        <div class="shell privacy-inner">
+          <h2 id="privacy-title">Nothing you see leaves your device.</h2>
+          <ul class="promises">
+            <li>No account to create.</li>
+            <li>No analytics, tracking or ads.</li>
+            <li>No page content is sent anywhere. Inkout makes no network requests at all.</li>
+          </ul>
+          <p>The code is open for anyone to check. <a href="privacy.html">Read the privacy policy</a></p>
+        </div>
+      </section>
+
+      <section class="shell section faq" aria-labelledby="faq-title">
+        <h2 id="faq-title">Questions</h2>
+        <details>
+          <summary>Does it work with the Zoom or Teams desktop apps?</summary>
+          <p>Inkout hides text inside Chrome, so anything you show from a Chrome tab is covered, whatever app runs the call. It can only <em>notice</em> a share that starts from a web page; if you share from a desktop app, turn Inkout on first (it's on by default).</p>
+        </details>
+        <details>
+          <summary>Will it break the websites I use?</summary>
+          <p>No. Inkout paints over the matching text without changing the page itself, so sites like web mail keep working normally.</p>
+        </details>
+        <details>
+          <summary>What can't it hide?</summary>
+          <p>Chrome's own interface (the address bar and autofill suggestions), text inside images, canvas drawings and PDFs, and a value split across two pieces of a page.</p>
+        </details>
+        <details>
+          <summary>Is it really free?</summary>
+          <p>Yes. Inkout is free and open source under the MIT license. There's no paid version.</p>
+        </details>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="shell footer-row">
+        <span>Inkout is free and open source.</span>
+        <nav aria-label="Footer">
+          <a href="https://github.com/KunalKumarkkr01/inkout">Source code</a>
+          <a href="privacy.html">Privacy policy</a>
+          <a href="mailto:kunaljmit036@gmail.com">kunaljmit036@gmail.com</a>
+        </nav>
+      </div>
+    </footer>
+  </body>
+</html>
