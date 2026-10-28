@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Shadow DOM page</title>
+    <style>body { font: 22px/1.6 Arial, sans-serif; color: #ff0000; margin: 20px; }</style>
+  </head>
+  <body>
+    <contact-card id="open-card"></contact-card>
+    <secret-card id="closed-card"></secret-card>
+    <form-card id="form-card"></form-card>
+    <late-card id="late-card"></late-card>
+    <script>
+      // Web components like design systems use: open and closed shadow roots, a field inside one,
+      // and one whose script is defined later (the way a separately loaded bundle would).
+      const define = (name, mode, html, expose) =>
+        customElements.define(
+          name,
+          class extends HTMLElement {
+            constructor() {
+              super();
+              const root = this.attachShadow({ mode });
+              root.innerHTML = html;
+              if (expose) window[expose] = root;
+            }
+          }
+        );
+      define('contact-card', 'open', '<p id="inside">Shadow contact: shadow@example.com</p>');
+      define('secret-card', 'closed', '<p id="inside">Closed contact: closed@example.com</p>', 'closedRoot');
+      define('form-card', 'open', '<input id="shadow-field" type="text" value="Kunal" style="font: inherit; color: #ff0000">');
+      setTimeout(() => define('late-card', 'open', '<p id="inside">Late contact: late@example.com</p>'), 50);
+    </script>
+  </body>
+</html>

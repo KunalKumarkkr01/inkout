@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Frames page</title>
+  </head>
+  <body>
+    <p>Top: top@example.com</p>
+    <iframe id="same-site" src="frame-child.html"></iframe>
+    <iframe id="blank"></iframe>
+    <iframe id="cross-site"></iframe>
+    <script>
+      // The test passes the cross-site frame's address in the query string (its port is random).
+      document.getElementById('cross-site').src = new URLSearchParams(location.search).get('cross');
+      document.getElementById('blank').contentDocument.body.innerHTML = '<p>Blank frame: blank@example.com</p>';
+    </script>
+  </body>
+</html>

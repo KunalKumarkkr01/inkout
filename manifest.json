@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "Screen Share Privacy Guard",
+  "version": "1.0.0",
+  "description": "Hides email addresses, phone numbers and card numbers on web pages so they don't show when you share your screen.",
+  "permissions": ["storage"],
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "action": {
+    "default_title": "Screen Share Privacy Guard",
+    "default_popup": "src/popup.html"
+  },
+  "commands": {
+    "toggle-masking": {
+      "suggested_key": { "default": "Alt+Shift+H" },
+      "description": "Turn hiding on or off"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/page-hooks.js"],
+      "run_at": "document_start",
+      "all_frames": true,
+      "match_about_blank": true,
+      "world": "MAIN"
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/settings.js", "src/detectors.js", "src/content.js"],
+      "css": ["src/content.css"],
+      "run_at": "document_start",
+      "all_frames": true,
+      "match_about_blank": true
+    }
+  ]
+}

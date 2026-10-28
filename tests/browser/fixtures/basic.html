@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Basic page</title>
+    <!-- Pure red text lets the pixel tests tell original glyphs apart from the grey blur. -->
+    <style>
+      body { font: 22px/1.6 Arial, sans-serif; color: #ff0000; margin: 20px; background: #ffffff; }
+      input, textarea { font: inherit; color: #ff0000; width: 520px; display: block; margin: 6px 0; }
+    </style>
+  </head>
+  <body>
+    <p id="contact">From: Priya Sharma &lt;priya.sharma@example.com&gt;, call +91 98765 43210.</p>
+    <p id="card">Card 4111 1111 1111 1111 on file.</p>
+    <p id="plain">Order 12345, due 22.10.2026, version 1.2.3.</p>
+    <p id="inline">Inline <b>support@acme.io</b> and <a href="#">(555) 123-4567</a>.</p>
+    <div id="editable" contenteditable="true">Reply to ops@acme.io</div>
+    <input id="email-field" type="email" value="kunal@example.com" />
+    <input id="name-field" type="text" value="Kunal" />
+    <input id="number-field" type="number" value="9876543210" />
+    <textarea id="notes">nothing private</textarea>
+    <script type="text/plain" id="data">hidden@script.example</script>
+    <svg width="520" height="80">
+      <text id="svg-text" x="0" y="28" font-size="22" fill="#ff0000">svg@example.com</text>
+      <text id="svg-tspan" x="0" y="64" font-size="22" fill="#ff0000">Call <tspan>+1 555 123 4567</tspan></text>
+    </svg>
+  </body>
+</html>

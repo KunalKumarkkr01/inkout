@@ -1,0 +1,42 @@
+/* Blur effect: highlights can't use `filter`, so the glyphs go transparent and only a soft
+   shadow remains. The radius is in em so it scales with font size and stays unreadable. */
+::highlight(privacy-guard-email),
+::highlight(privacy-guard-phone),
+::highlight(privacy-guard-card) {
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 0.6em #3c4043, 0 0 0.6em #3c4043, 0 0 0.6em #3c4043;
+  text-decoration: none;
+}
+
+/* Selection is painted above highlights with its own text color, which would reveal the text.
+   Elements holding hidden text keep it blurred while selected (only for types switched on). */
+html[data-privacy-guard-active~='email'] [data-privacy-guard-selection~='email']::selection,
+html[data-privacy-guard-active~='phone'] [data-privacy-guard-selection~='phone']::selection,
+html[data-privacy-guard-active~='card'] [data-privacy-guard-selection~='card']::selection,
+[data-privacy-guard-masked]::selection {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  text-shadow: 0 0 0.6em #3c4043, 0 0 0.6em #3c4043, 0 0 0.6em #3c4043 !important;
+  /* An author ::selection rule drops Chrome's default background, so restore it. */
+  background-color: Highlight !important;
+}
+
+/* SVG text ignores highlight painting, so an SVG <text> holding hidden values is blurred whole. */
+html[data-privacy-guard-active~='email'] svg text:is([data-privacy-guard-selection~='email'], :has([data-privacy-guard-selection~='email'])),
+html[data-privacy-guard-active~='phone'] svg text:is([data-privacy-guard-selection~='phone'], :has([data-privacy-guard-selection~='phone'])),
+html[data-privacy-guard-active~='card'] svg text:is([data-privacy-guard-selection~='card'], :has([data-privacy-guard-selection~='card'])) {
+  /* Thickening the glyphs before blurring makes the blur as dense as the text-shadow one. */
+  fill: #3c4043 !important;
+  stroke: #3c4043 !important;
+  stroke-width: 0.12em !important;
+  filter: blur(0.35em);
+}
+
+/* Text fields containing sensitive data get the same blur; the caret stays visible for typing. */
+[data-privacy-guard-masked] {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  text-shadow: 0 0 0.6em #3c4043, 0 0 0.6em #3c4043, 0 0 0.6em #3c4043 !important;
+  caret-color: #5f6368 !important;
+}

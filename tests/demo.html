@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Privacy Guard demo page</title>
+    <!-- Manual test page: loads the real content script with an in-memory stand-in for chrome.storage. -->
+    <script>
+      (function () {
+        const store = {};
+        const listeners = [];
+        globalThis.chrome = {
+          storage: {
+            sync: {
+              get: async (key) => ({ [key]: store[key] }),
+              set: async (items) => {
+                for (const [key, newValue] of Object.entries(items)) {
+                  store[key] = newValue;
+                  listeners.forEach((listener) => listener({ [key]: { newValue } }, 'sync'));
+                }
+              },
+            },
+            onChanged: { addListener: (listener) => listeners.push(listener) },
+          },
+        };
+      })();
+    </script>
+    <link rel="stylesheet" href="../src/content.css" />
+    <script src="../src/settings.js"></script>
+    <script src="../src/detectors.js"></script>
+    <script src="../src/content.js"></script>
+    <style>
+      body { font: 16px/1.6 system-ui, sans-serif; max-width: 640px; margin: 24px auto; padding: 0 16px; }
+      input, textarea { font: inherit; width: 100%; box-sizing: border-box; margin-bottom: 8px; }
+    </style>
+  </head>
+  <body>
+    <h1>Inbox</h1>
+    <p id="static">From: Priya Sharma &lt;priya.sharma@example.com&gt; — call me on +91 98765 43210.</p>
+    <p>Billing card 4111 1111 1111 1111, backup card 5500-0000-0000-0004.</p>
+    <p>Not sensitive: order 12345, due 22.10.2026, version 1.2.3, ping @kunal.</p>
+    <p id="split">Inline markup: <b>support@acme.io</b> and <a href="#">(555) 123-4567</a>.</p>
+    <div id="editable" contenteditable="true">Editable: reply to ops@acme.io</div>
+    <label>Email field <input id="field" type="email" value="kunal@example.com" /></label>
+    <label>Notes <textarea id="notes">nothing private here</textarea></label>
+    <div id="dynamic"></div>
+    <script>
+      document.getElementById('dynamic').textContent = 'Added later by script: late@example.com';
+    </script>
+  </body>
+</html>
