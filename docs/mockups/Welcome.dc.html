@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Welcome to Inkout</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#0B7A75}a:hover{color:#085E5A}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #F4F6F8; font-family: Manrope, system-ui, sans-serif; color: #0F1B2D; display: flex; flex-direction: column">
+
+  <header style="background: #FFFFFF; border-bottom: 1px solid #E3E7EC">
+    <div style="max-width: 1120px; margin: 0 auto; box-sizing: border-box; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px">
+      <div style="display: flex; align-items: center; gap: 10px">
+        <svg width="30" height="30" viewBox="0 0 48 48" aria-hidden="true">
+          <rect x="1.5" y="1.5" width="45" height="45" rx="11" fill="#FFFFFF" stroke="#0F1B2D" stroke-width="3"></rect>
+          <rect x="11" y="11" width="26" height="5" rx="2.5" fill="#B8C1CC"></rect>
+          <path d="M12 25 L36 23" fill="none" stroke="#0F1B2D" stroke-width="8" stroke-linecap="round"></path>
+          <rect x="11" y="32" width="16" height="5" rx="2.5" fill="#B8C1CC"></rect>
+        </svg>
+        <span style="font-size: 17px; font-weight: 800">Inkout</span>
+      </div>
+      <a href="#" style="font-size: 14px; font-weight: 700; text-decoration: none">Settings</a>
+    </div>
+  </header>
+
+  <section style="max-width: 1120px; width: 100%; margin: 0 auto; box-sizing: border-box; padding: 56px 24px 40px; display: flex; flex-wrap: wrap; gap: 40px; align-items: center">
+    <div style="flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 18px">
+      <span style="align-self: flex-start; font-size: 13px; font-weight: 800; color: #0B5E5A; background: #E3F4F2; border-radius: 999px; padding: 6px 12px">Installed. Protection is on.</span>
+      <h1 style="margin: 0; font-size: 52px; line-height: 1.05; font-weight: 800; letter-spacing: -0.03em">Share your screen, not your inbox.</h1>
+      <p style="margin: 0; font-size: 18px; line-height: 1.55; color: #33435A; max-width: 520px">Inkout hides email addresses, phone numbers and card numbers on every website, automatically, so they never reach the people on your call.</p>
+      <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 6px">
+        <a href="#try" style="display: inline-flex; align-items: center; min-height: 48px; padding: 0 22px; border-radius: 12px; background: #0F1B2D; color: #FFFFFF; font-size: 15px; font-weight: 700; text-decoration: none">See it in action</a>
+        <a href="#" style="display: inline-flex; align-items: center; min-height: 48px; padding: 0 22px; border-radius: 12px; border: 1px solid #CDD4DC; background: #FFFFFF; color: #0F1B2D; font-size: 15px; font-weight: 700; text-decoration: none">Choose what to hide</a>
+      </div>
+    </div>
+
+    <div style="flex: 1 1 420px; min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <span style="font-size: 13px; font-weight: 800; color: #9A3412">Without Inkout</span>
+        <div style="background: #FFFFFF; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 10px; border: 1px solid #F3D3B5">
+          <sc-for list="{{inbox}}" as="mail" hint-placeholder-count="4">
+            <div style="display: flex; flex-direction: column; gap: 2px; padding-bottom: 8px; border-bottom: 1px solid #EEF1F4">
+              <span style="font-size: 13px; font-weight: 700">{{mail.name}}</span>
+              <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #33435A">{{mail.email}}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <span style="font-size: 13px; font-weight: 800; color: #0B5E5A">With Inkout</span>
+        <div style="background: #FFFFFF; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 10px; border: 1px solid #BFE6E2">
+          <sc-for list="{{inbox}}" as="mail" hint-placeholder-count="4">
+            <div style="display: flex; flex-direction: column; gap: 2px; padding-bottom: 8px; border-bottom: 1px solid #EEF1F4">
+              <span style="font-size: 13px; font-weight: 700">{{mail.name}}</span>
+              <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #33435A; filter: blur(3.5px)">{{mail.email}}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section style="max-width: 1120px; width: 100%; margin: 0 auto; box-sizing: border-box; padding: 8px 24px 40px; display: flex; flex-direction: column; gap: 16px">
+    <h2 style="margin: 0; font-size: 24px; font-weight: 800">Three things to set up, once</h2>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px">
+      <sc-for list="{{steps}}" as="step" hint-placeholder-count="3">
+        <div style="background: #FFFFFF; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 10px">
+          <span style="width: 32px; height: 32px; border-radius: 10px; background: #0F1B2D; color: #FFFFFF; font-size: 15px; font-weight: 800; display: flex; align-items: center; justify-content: center">{{step.n}}</span>
+          <span style="font-size: 17px; font-weight: 800">{{step.title}}</span>
+          <span style="font-size: 14px; line-height: 1.5; color: #4A5462">{{step.body}}</span>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section id="try" style="max-width: 1120px; width: 100%; margin: 0 auto; box-sizing: border-box; padding: 8px 24px 40px">
+    <div style="background: #FFFFFF; border-radius: 18px; padding: 24px; display: flex; flex-direction: column; gap: 12px; border: 2px dashed #BFE6E2">
+      <h2 style="margin: 0; font-size: 20px; font-weight: 800">Try it right here</h2>
+      <p style="margin: 0; font-size: 16px; line-height: 1.8; color: #33435A">Hi team, send the invoice to <span style="font-family: 'IBM Plex Mono', monospace; filter: blur(4px)">accounts@example.com</span> or call me on <span style="font-family: 'IBM Plex Mono', monospace; filter: blur(4px)">+91 98765 43210</span>. The company card is <span style="font-family: 'IBM Plex Mono', monospace; filter: blur(4px)">4111 1111 1111 1111</span>.</p>
+      <p style="margin: 0; font-size: 14px; color: #4A5462">This is a real paragraph: Inkout is blurring it now. Press Alt + Shift + H to see it switch off and on.</p>
+    </div>
+  </section>
+
+  <section style="max-width: 1120px; width: 100%; margin: 0 auto; box-sizing: border-box; padding: 8px 24px 56px">
+    <div style="background: #0F1B2D; color: #E8EEF5; border-radius: 18px; padding: 24px; display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between">
+      <div style="display: flex; align-items: center; gap: 12px">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#5EDDD3" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
+        <span style="font-size: 17px; font-weight: 800">Nothing you see leaves your device. No account, no tracking.</span>
+      </div>
+      <a href="#" style="font-size: 14px; font-weight: 700; color: #5EDDD3; text-decoration: none">Privacy policy</a>
+    </div>
+  </section>
+
+  <footer style="margin-top: auto; border-top: 1px solid #E3E7EC; background: #FFFFFF">
+    <div style="max-width: 1120px; margin: 0 auto; box-sizing: border-box; padding: 16px 24px; display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; font-size: 13px; color: #4A5462">
+      <span>Inkout 1.0 · Free · Contact: kunaljmit036@gmail.com</span>
+      <span style="display: flex; gap: 16px"><a href="#" style="text-decoration: none; font-weight: 700">Report a problem</a><a href="#" style="text-decoration: none; font-weight: 700">Rate on the Chrome Web Store</a></span>
+    </div>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1300}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      inbox: [
+        { name: 'Priya Sharma', email: 'priya.sharma@example.com' },
+        { name: 'Rahul Verma', email: 'rahul.v@example.org' },
+        { name: 'Acme Billing', email: 'billing@acme.example' },
+        { name: 'Meera Iyer', email: 'meera.iyer@example.net' },
+      ],
+      steps: [
+        { n: '1', title: 'Pin it to the toolbar', body: 'Click the puzzle-piece icon next to the address bar, then the pin next to Inkout. You will always see whether it is on.' },
+        { n: '2', title: 'Learn the shortcut', body: 'Alt + Shift + H turns protection on or off from any tab. A red OFF badge shows when it is off.' },
+        { n: '3', title: 'Pick what to hide', body: 'Emails, phones and cards are on. Add API keys, bank account numbers or your own words in settings.' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>
