@@ -5,7 +5,7 @@
 
   const Settings = globalThis.PrivacyGuardSettings;
   const { isSiteActive } = globalThis.InkoutSites;
-  const REFRESH_INTERVAL_MS = 1000;
+  const SESSION_AREA = 'session';
   // Order and wording of the count chips, as [singular, plural].
   const COUNT_LABELS = [
     ['email', 'email', 'emails'],
@@ -156,6 +156,9 @@
     tabId = id;
     refresh();
     Settings.onChange(refresh);
-    setInterval(refresh, REFRESH_INTERVAL_MS);
+    // The service worker keeps counts, pauses and sharing in session storage: redraw when they change.
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === SESSION_AREA) refresh();
+    });
   });
 })();

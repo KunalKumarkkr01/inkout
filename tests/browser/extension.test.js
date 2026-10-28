@@ -884,6 +884,8 @@ describe('extension in a real browser', { skip: skipReason }, () => {
      * Returns: Promise of { pressed, title, desc, host, siteLine, counts, pause, pauseShown, banner, blurShown }.
      */
     async function popupView() {
+      // A real popup is always on screen; as a background tab its page would be throttled.
+      await chrome.send('Page.bringToFront', {}, popup.sessionId);
       await popup.settle(400);
       return popup.evaluate(`(() => {
         const text = (id) => document.getElementById(id).textContent.replace(/\\s+/g, ' ').trim();
