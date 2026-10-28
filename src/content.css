@@ -114,6 +114,8 @@ html[data-privacy-guard-style='bar'] [data-privacy-guard-masked]::selection {
 }
 
 /* "Blur the whole page" (Alt+Shift+K): for surprises while sharing, whatever the other settings. */
-html[data-privacy-guard-whole-page] body {
+html[data-privacy-guard-whole-page] body,
+/* Dialogs, pop-ups and fullscreen elements are drawn above the page, out of reach of the body's blur. */
+html[data-privacy-guard-whole-page] :is(:modal, :popover-open, :fullscreen) {
   filter: blur(14px) !important;
 }

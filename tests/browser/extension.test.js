@@ -917,6 +917,25 @@ describe('extension in a real browser', { skip: skipReason }, () => {
       await setSettings(DEFAULT_SETTINGS, blurred.tab);
     });
 
+    test('also blurs dialogs and pop-ups drawn above the page', async () => {
+      await blurred.tab.evaluate(`(() => {
+        document.body.insertAdjacentHTML('beforeend',
+          '<dialog id="modal" style="color:#ff0000;font:22px Arial">Login code for kunal@example.com</dialog>' +
+          '<div id="tip" popover style="color:#ff0000;font:22px Arial">Shared with priya@example.com</div>');
+        document.getElementById('modal').showModal();
+        document.getElementById('tip').showPopover();
+      })()`);
+      await blurred.tab.settle(300);
+      assert.ok((await redPixelsOver('#modal', 'Login code', blurred.tab)) > 50);
+      await sendMessage({ type: 'blurPage', tabId: blurred.id });
+      await blurred.tab.settle(300);
+      assert.equal(await redPixelsOver('#modal', 'Login code', blurred.tab), 0);
+      assert.equal(await redPixelsOver('#tip', 'Shared with', blurred.tab), 0);
+      await sendMessage({ type: 'blurPage', tabId: blurred.id });
+      await blurred.tab.evaluate(`document.getElementById('modal').close(); document.getElementById('tip').hidePopover()`);
+      await blurred.tab.settle(300);
+    });
+
     test('the page cannot remove the blur', async () => {
       await sendMessage({ type: 'blurPage', tabId: blurred.id });
       await blurred.tab.settle(300);
