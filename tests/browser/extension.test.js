@@ -562,6 +562,179 @@ describe('extension in a real browser', { skip: skipReason }, () => {
     });
   });
 
+  describe('per-tab counts and pause', () => {
+    // Chrome runs timers in background tabs about once a second, which delays their count reports.
+    const COUNT_REPORT_WAIT_MS = 1500;
+    let page; // an extension page, to talk to the service worker like the popup does
+    let first;
+    let second;
+
+    /**
+     * Summary: ids of every open tab, read from an extension page.
+     * Returns: Promise of tab ids. (Tab URLs are hidden without the "tabs" permission.)
+     */
+    function tabIds() {
+      return page.evaluate(`chrome.tabs.query({}).then((tabs) => tabs.map((each) => each.id))`);
+    }
+
+    /**
+     * Summary: opens a new tab on a page and learns its Chrome tab id by comparing the tab list.
+     * Parameters: url — page to open.
+     * Returns: Promise of { tab, id }.
+     */
+    async function openTrackedTab(url) {
+      const before = await tabIds();
+      const opened = await Tab.open(chrome, EXTENSION_NAME);
+      const id = (await tabIds()).find((each) => !before.includes(each));
+      await opened.goto(url);
+      await opened.settle(COUNT_REPORT_WAIT_MS);
+      return { tab: opened, id };
+    }
+
+    /**
+     * Summary: sends a runtime message from the extension page and returns the reply.
+     * Parameters: message — e.g. { type: 'getTabState', tabId }.
+     */
+    function sendMessage(message) {
+      return page.evaluate(`chrome.runtime.sendMessage(${JSON.stringify(message)})`);
+    }
+
+    /**
+     * Summary: the badge text Chrome shows for a tab.
+     * Parameters: tabId.
+     */
+    function badgeText(tabId) {
+      return page.evaluate(`chrome.action.getBadgeText({ tabId: ${tabId} })`);
+    }
+
+    /**
+     * Summary: stops the extension's service worker the way Chrome does when it is idle.
+     * Returns: Promise that resolves once Chrome reports it stopped.
+     */
+    async function stopServiceWorker() {
+      const versions = new Map();
+      const stopListening = chrome.onEvent((message) => {
+        if (message.method !== 'ServiceWorker.workerVersionUpdated') return;
+        for (const version of message.params.versions) versions.set(version.versionId, version);
+      });
+      await chrome.send('ServiceWorker.enable', {}, page.sessionId);
+      await page.settle(300);
+      const running = [...versions.values()].find(
+        (version) => version.scriptURL.endsWith('/src/background.js') && version.runningStatus === 'running'
+      );
+      assert.ok(running, 'the service worker should be running before it is stopped');
+      const stopped = chrome.waitFor('ServiceWorker.workerVersionUpdated', (message) =>
+        message.params.versions.some(
+          (version) => version.versionId === running.versionId && version.runningStatus === 'stopped'
+        )
+      );
+      await chrome.send('ServiceWorker.stopWorker', { versionId: running.versionId }, page.sessionId);
+      await stopped;
+      stopListening();
+      await chrome.send('ServiceWorker.disable', {}, page.sessionId);
+    }
+
+    before(async () => {
+      page = await Tab.open(chrome, EXTENSION_NAME);
+      await page.goto(`chrome-extension://${extensionId}/src/popup.html`);
+      first = await openTrackedTab(`${server.origin}/basic.html`);
+      await setSettings(DEFAULT_SETTINGS, first.tab);
+      second = await openTrackedTab(`${server.origin}/basic.html`);
+      await first.tab.settle(COUNT_REPORT_WAIT_MS);
+    });
+    after(async () => {
+      await first?.tab.close();
+      await second?.tab.close();
+      await page?.close();
+    });
+
+    test('the tab reports how many values of each type it is hiding', async () => {
+      const expectedEmails = await first.tab.evaluate(
+        `CSS.highlights.get('privacy-guard-email').size +
+          [...document.querySelectorAll('[data-privacy-guard-masked]')].filter((field) =>
+            PiiDetectors.findMatches(field.value).some((match) => match.type === 'email')
+          ).length`,
+        { world: 'isolated' }
+      );
+      const state = await sendMessage({ type: 'getTabState', tabId: first.id });
+      assert.ok(expectedEmails > 0);
+      assert.equal(state.counts.email, expectedEmails);
+      assert.equal(state.counts.card, 1);
+      assert.equal(state.host, new URL(server.origin).host);
+      assert.equal(state.paused, false);
+      assert.deepEqual(state.sharing, { active: false, label: '' });
+    });
+
+    test('the count follows the page as content is added', async () => {
+      const before = (await sendMessage({ type: 'getTabState', tabId: first.id })).counts.email;
+      await first.tab.evaluate(`document.body.insertAdjacentHTML('beforeend', '<p>new@example.com</p>')`);
+      await first.tab.settle(COUNT_REPORT_WAIT_MS);
+      assert.equal((await sendMessage({ type: 'getTabState', tabId: first.id })).counts.email, before + 1);
+    });
+
+    test('pausing a tab shows everything there and badges that tab only', async () => {
+      await sendMessage({ type: 'setPaused', tabId: first.id, paused: true });
+      await first.tab.settle(300);
+      assert.deepEqual(await first.tab.hiddenText(), {});
+      assert.equal(await first.tab.evaluate(`document.querySelector('[data-privacy-guard-masked]')`), null);
+      assert.equal(await badgeText(first.id), '❚❚');
+      assert.equal(await page.evaluate(`chrome.action.getTitle({ tabId: ${first.id} })`), 'Inkout is paused on this tab');
+      assert.equal((await sendMessage({ type: 'getTabState', tabId: first.id })).paused, true);
+    });
+
+    test('another tab on the same site stays protected', async () => {
+      assert.ok((await second.tab.hiddenText()).email.length > 0);
+      assert.equal(await badgeText(second.id), '');
+    });
+
+    test('the pause survives Chrome stopping the service worker', async () => {
+      await stopServiceWorker();
+      assert.equal((await sendMessage({ type: 'getTabState', tabId: first.id })).paused, true);
+    });
+
+    test('the pause survives a reload on the same site', async () => {
+      await first.tab.goto(`${server.origin}/basic.html`);
+      assert.deepEqual(await first.tab.hiddenText(), {});
+    });
+
+    test('resuming hides again and clears the badge', async () => {
+      await sendMessage({ type: 'setPaused', tabId: first.id, paused: false });
+      await first.tab.settle(300);
+      assert.ok((await first.tab.hiddenText()).email.length > 0);
+      assert.equal(await badgeText(first.id), '');
+    });
+
+    test('moving the tab to a different site ends the pause', async () => {
+      await sendMessage({ type: 'setPaused', tabId: first.id, paused: true });
+      await first.tab.goto(`${server.crossSiteOrigin}/basic.html`);
+      assert.ok((await first.tab.hiddenText()).email.length > 0);
+      assert.equal(await badgeText(first.id), '');
+      assert.equal((await sendMessage({ type: 'getTabState', tabId: first.id })).paused, false);
+    });
+
+    test('turning protection off badges every tab OFF, even a paused one', async () => {
+      await sendMessage({ type: 'setPaused', tabId: second.id, paused: true });
+      await setSettings({ ...DEFAULT_SETTINGS, enabled: false }, first.tab);
+      assert.equal(await badgeText(first.id), 'OFF');
+      assert.equal(await badgeText(second.id), 'OFF');
+      await setSettings(DEFAULT_SETTINGS, first.tab);
+      assert.equal(await badgeText(second.id), '❚❚');
+      await sendMessage({ type: 'setPaused', tabId: second.id, paused: false });
+    });
+
+    test('a closed tab is forgotten', async () => {
+      await second.tab.close();
+      await page.settle(300);
+      assert.deepEqual(await sendMessage({ type: 'getTabState', tabId: second.id }), {
+        host: '',
+        paused: false,
+        counts: {},
+        sharing: { active: false, label: '' },
+      });
+      second = null;
+    });
+  });
+
   describe('popup and toolbar badge', () => {
     let popup;
 

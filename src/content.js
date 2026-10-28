@@ -17,6 +17,7 @@
   const VALUE_CHANGED_EVENT = 'inkout:value-changed';
   const SHADOW_ATTACHED_EVENT = 'inkout:shadow-attached';
   const PRUNE_DELAY_MS = 2000;
+  const COUNT_REPORT_DELAY_MS = 300;
   // <title> text isn't drawn in the page; maskTitle() rewrites it instead.
   const SKIPPED_PARENT_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE', 'TEXTAREA', 'TITLE']);
   const TITLE_MASK = '•••••';
@@ -110,6 +111,10 @@
   // Whether this page is being protected at all (on, and allowed on this site). While not,
   // the page isn't watched or scanned, and nothing is painted over.
   let protecting = true;
+  // Paused on this tab from the popup; kept by the service worker, never in synced settings.
+  let paused = false;
+  let countTimer = null;
+  let lastReportedCounts = '';
   // The page's own title, and the masked one this script last wrote (to tell the two apart).
   let rawTitle = null;
   let lastWrittenTitle = null;
@@ -303,6 +308,7 @@
    */
   function pruneDetachedNodes() {
     pruneTimer = null;
+    scheduleCountReport();
     for (const node of rangesByTextNode.keys()) {
       if (!node.isConnected) forgetTextNode(node);
     }
@@ -339,6 +345,42 @@
       if (record.removedNodes.length > 0) schedulePrune();
     }
     if (IS_TOP_FRAME && document.title !== lastWrittenTitle) maskTitle();
+    scheduleCountReport();
+  }
+
+  /**
+   * Summary: how many values of each active type this frame is hiding right now.
+   * Returns: object like { email: 3, card: 1 } (empty when not protecting).
+   */
+  function countHidden() {
+    const counts = {};
+    if (!protecting) return counts;
+    for (const [type, highlight] of highlights) {
+      if (isTypeActive(type) && highlight.size > 0) counts[type] = highlight.size;
+    }
+    for (const field of allTextFields()) {
+      if (!field.hasAttribute(FIELD_MASK_ATTRIBUTE)) continue;
+      for (const { type } of findMatches(field.value, customPattern)) {
+        if (isTypeActive(type)) counts[type] = (counts[type] ?? 0) + 1;
+      }
+    }
+    return counts;
+  }
+
+  /**
+   * Summary: tells the service worker this frame's counts, at most once per short delay and only on change.
+   * Usage: called after anything that can change what is hidden; the popup shows the totals.
+   */
+  function scheduleCountReport() {
+    if (countTimer !== null) return;
+    countTimer = setTimeout(() => {
+      countTimer = null;
+      const counts = countHidden();
+      const key = JSON.stringify(counts);
+      if (key === lastReportedCounts) return;
+      lastReportedCounts = key;
+      chrome.runtime.sendMessage({ type: 'frameCounts', counts }).catch(() => {});
+    }, COUNT_REPORT_DELAY_MS);
   }
 
   /**
@@ -376,7 +418,9 @@
   function handleFieldEvent(event) {
     if (!protecting) return;
     const field = event.composedPath()[0];
-    if (field instanceof Element && field.matches(TEXT_FIELD_SELECTOR)) maskTextField(field);
+    if (!(field instanceof Element) || !field.matches(TEXT_FIELD_SELECTOR)) return;
+    maskTextField(field);
+    scheduleCountReport();
   }
 
   /**
@@ -423,9 +467,9 @@
   function applySettings(nextSettings) {
     settings = nextSettings;
     const patternChanged = updateCustomPattern();
-    const shouldProtect = settings.enabled && isSiteActive(settings, topHost());
-    if (shouldProtect !== protecting) {
-      setProtecting(shouldProtect);
+    scheduleCountReport();
+    if (shouldProtect() !== protecting) {
+      setProtecting(shouldProtect());
       return;
     }
     applyHighlightRegistry();
@@ -433,6 +477,32 @@
     if (!protecting) return;
     if (patternChanged) rescanEverything();
     else allTextFields().forEach(maskTextField);
+  }
+
+  /**
+   * Summary: whether this page should be protected now: on, allowed on this site, and not paused.
+   * Returns: boolean.
+   */
+  function shouldProtect() {
+    return settings.enabled && !paused && isSiteActive(settings, topHost());
+  }
+
+  /**
+   * Summary: pauses or resumes this frame when the popup pauses or resumes the tab.
+   * Parameters: nextPaused — true while the tab is paused.
+   */
+  function applyPause(nextPaused) {
+    paused = nextPaused;
+    scheduleCountReport();
+    if (shouldProtect() !== protecting) setProtecting(shouldProtect());
+  }
+
+  /**
+   * Summary: handles messages from the service worker.
+   * Parameters: message — { type: 'pauseChanged', paused }.
+   */
+  function handleWorkerMessage(message) {
+    if (message.type === 'pauseChanged') applyPause(message.paused);
   }
 
   /**
@@ -466,4 +536,10 @@
 
   Settings.load().then(applySettings);
   Settings.onChange(applySettings);
+  chrome.runtime.onMessage.addListener(handleWorkerMessage);
+  // Tells the service worker this frame loaded; a tab paused on this site stays paused after a reload.
+  chrome.runtime
+    .sendMessage({ type: 'frameHello', host: topHost() })
+    .then((reply) => applyPause(Boolean(reply?.paused)))
+    .catch(() => {});
 })();
