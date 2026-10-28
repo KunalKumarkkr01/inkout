@@ -166,13 +166,14 @@ class Tab {
   /**
    * Summary: the exact strings the extension is currently hiding in a frame, per type.
    * Parameters: frameId — default main frame.
-   * Returns: Promise of { email: [...], phone: [...], card: [...] } (only types currently shown as hidden).
+   * Returns: Promise of { email: [...], phone: [...], card: [...] } (only types with something hidden right now).
    */
   hiddenText(frameId) {
     return this.evaluate(
       `(() => {
         const result = {};
         for (const [name, highlight] of CSS.highlights) {
+          if (highlight.size === 0) continue;
           result[name.replace('privacy-guard-', '')] = [...highlight].map((range) => range.toString()).sort();
         }
         return result;
