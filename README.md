@@ -87,6 +87,8 @@ npm run package
 
 This writes `dist/inkout-<version>.zip` (the version comes from `manifest.json`), with `manifest.json` at the root and only `manifest.json`, `src/` and `icons/` inside. Upload that zip in the Chrome Web Store developer dashboard; the listing text and images are in `store/`.
 
+After the first version is in the store, releases are automatic: raise the version in `manifest.json`, merge, then push a tag such as `v1.0.1`. The Release workflow tests and packages that version, attaches the zip to a GitHub release and, once you approve it, submits it to the Chrome Web Store for review. The one-time setup is in [docs/releasing.md](docs/releasing.md).
+
 `tests/demo.html` is a manual test page. It loads the content script with an in-memory stand-in for `chrome.storage`. Serve the folder over HTTP (not `file://`) and open `/tests/demo.html`.
 
 | File | Purpose |
@@ -105,6 +107,8 @@ This writes `dist/inkout-<version>.zip` (the version comes from `manifest.json`)
 | `src/options.*`, `src/pattern-check.js` | Settings page |
 | `src/welcome*` | Welcome page, opened once on install |
 | `scripts/render.js` | Renders icons and store images with headless Chrome |
+| `scripts/package.js` | Builds the store zip |
+| `scripts/publish.js` | Uploads a release to the Chrome Web Store (used by the Release workflow) |
 | `store/` | Chrome Web Store images and listing text |
 | `site/` | Project website (GitHub Pages) |
 | `tests/browser/` | Headless-Chrome test harness, fixtures and end-to-end tests |
