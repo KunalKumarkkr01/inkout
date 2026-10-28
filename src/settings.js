@@ -6,17 +6,41 @@
   const STORAGE_KEY = 'privacyGuardSettings';
   const DEFAULTS = Object.freeze({
     enabled: true,
-    types: Object.freeze({ email: true, phone: true, card: true }),
+    types: Object.freeze({ email: true, apiKey: true, iban: true, card: true, phone: true, ip: false, custom: true }),
+    customWords: Object.freeze([]),
+    customWordsIgnoreCase: true,
+    customWordsAsPatterns: false,
+    style: 'blur',
+    blurStrength: 'medium',
+    siteMode: 'all',
+    chosenSites: Object.freeze([]),
+    neverHideSites: Object.freeze([]),
+    hideTitles: true,
+    autoOnWhenSharing: true,
+    autoOffWhenSharingEnds: false,
   });
+  const CHOICES = Object.freeze({
+    style: ['blur', 'bar'],
+    blurStrength: ['light', 'medium', 'strong'],
+    siteMode: ['all', 'chosen'],
+  });
+  const LIST_KEYS = ['customWords', 'chosenSites', 'neverHideSites'];
 
   /**
-   * Summary: fills in any missing settings with defaults (everything hidden).
-   * Parameters: stored — settings object read from storage, possibly undefined or partial.
-   * Returns: a complete settings object { enabled, types: { email, phone, card } }.
-   * Usage: withDefaults(undefined) → defaults on first install; withDefaults({ enabled: false }) keeps types on.
+   * Summary: fills in missing or invalid settings with defaults, so callers always get a complete object.
+   * Parameters: stored — settings object read from storage, possibly undefined, partial or from an older version.
+   * Returns: a complete settings object shaped like DEFAULTS, with fresh arrays the caller may change.
+   * Usage: withDefaults(undefined) → defaults on first install; withDefaults({ style: 'label' }).style → 'blur'.
    */
   function withDefaults(stored) {
-    return { ...DEFAULTS, ...stored, types: { ...DEFAULTS.types, ...stored?.types } };
+    const merged = { ...DEFAULTS, ...stored, types: { ...DEFAULTS.types, ...stored?.types } };
+    for (const [key, allowed] of Object.entries(CHOICES)) {
+      if (!allowed.includes(merged[key])) merged[key] = DEFAULTS[key];
+    }
+    for (const key of LIST_KEYS) {
+      merged[key] = Array.isArray(merged[key]) ? [...merged[key]] : [];
+    }
+    return merged;
   }
 
   /**
