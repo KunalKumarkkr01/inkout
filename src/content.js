@@ -17,7 +17,10 @@
   const VALUE_CHANGED_EVENT = 'inkout:value-changed';
   const SHADOW_ATTACHED_EVENT = 'inkout:shadow-attached';
   const PRUNE_DELAY_MS = 2000;
-  const SKIPPED_PARENT_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE', 'TEXTAREA']);
+  // <title> text isn't drawn in the page; maskTitle() rewrites it instead.
+  const SKIPPED_PARENT_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE', 'TEXTAREA', 'TITLE']);
+  const TITLE_MASK = '•••••';
+  const IS_TOP_FRAME = window === window.top;
   const TEXT_FIELD_SELECTOR = [
     'input:not([type])',
     'input[type="text"]',
@@ -107,6 +110,9 @@
   // Whether this page is being protected at all (on, and allowed on this site). While not,
   // the page isn't watched or scanned, and nothing is painted over.
   let protecting = true;
+  // The page's own title, and the masked one this script last wrote (to tell the two apart).
+  let rawTitle = null;
+  let lastWrittenTitle = null;
   const highlights = new Map(TYPES.map((type) => [type, new Highlight()]));
   const rangesByTextNode = new Map();
   const shadowRoots = new Set();
@@ -131,7 +137,7 @@
    * Usage: isSiteActive(settings, topHost()).
    */
   function topHost() {
-    if (window === window.top) return location.host;
+    if (IS_TOP_FRAME) return location.host;
     const origins = location.ancestorOrigins;
     try {
       return new URL(origins[origins.length - 1]).host;
@@ -332,6 +338,35 @@
       record.addedNodes.forEach(scanSubtree);
       if (record.removedNodes.length > 0) schedulePrune();
     }
+    if (IS_TOP_FRAME && document.title !== lastWrittenTitle) maskTitle();
+  }
+
+  /**
+   * Summary: hides sensitive values in the tab title (top frame only), or puts the real title back.
+   * Usage: after the page changes its title, and whenever settings change. A title equal to the one this
+   *        script last wrote is its own, so writing it never loops.
+   */
+  function maskTitle() {
+    if (!IS_TOP_FRAME) return;
+    const current = document.title;
+    if (rawTitle === null || current !== lastWrittenTitle) rawTitle = current;
+    const wanted = protecting && settings.hideTitles ? maskText(rawTitle) : rawTitle;
+    lastWrittenTitle = wanted;
+    if (wanted !== current) document.title = wanted;
+  }
+
+  /**
+   * Summary: replaces each sensitive value of an active type in a string with dots.
+   * Parameters: text — any string.
+   * Returns: the string with matches replaced, e.g. "Inbox - ••••• - Mail".
+   */
+  function maskText(text) {
+    let masked = text;
+    const matches = findMatches(text, customPattern).filter((match) => isTypeActive(match.type));
+    for (const { start, end } of matches.reverse()) {
+      masked = masked.slice(0, start) + TITLE_MASK + masked.slice(end);
+    }
+    return masked;
   }
 
   /**
@@ -394,6 +429,7 @@
       return;
     }
     applyHighlightRegistry();
+    maskTitle();
     if (!protecting) return;
     if (patternChanged) rescanEverything();
     else allTextFields().forEach(maskTextField);
@@ -407,6 +443,7 @@
   function setProtecting(on) {
     protecting = on;
     applyHighlightRegistry();
+    maskTitle();
     if (on) {
       observer.observe(document.documentElement, OBSERVER_OPTIONS);
       shadowRoots.forEach((shadowRoot) => observer.observe(shadowRoot, OBSERVER_OPTIONS));
@@ -421,6 +458,7 @@
   applyHighlightRegistry();
   updateCustomPattern();
   scanSubtree(document.documentElement);
+  maskTitle();
   observer.observe(document.documentElement, OBSERVER_OPTIONS);
   document.addEventListener('input', handleFieldEvent, true);
   document.addEventListener(VALUE_CHANGED_EVENT, handleFieldEvent, true);

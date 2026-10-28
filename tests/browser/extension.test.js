@@ -449,6 +449,47 @@ describe('extension in a real browser', { skip: skipReason }, () => {
     });
   });
 
+  describe('tab titles', () => {
+    const TITLE_SAMPLES = 20;
+    const TITLE_SAMPLE_GAP_MS = 50;
+    after(() => setSettings(DEFAULT_SETTINGS));
+
+    test('sensitive values in the title are replaced by dots', async () => {
+      await openFixture('title.html');
+      assert.equal(await tab.evaluate('document.title'), 'Inbox - ••••• - Mail');
+    });
+
+    test('the real title comes back when title hiding or protection is switched off', async () => {
+      await setSettings({ ...DEFAULT_SETTINGS, hideTitles: false });
+      assert.equal(await tab.evaluate('document.title'), 'Inbox - priya.sharma@example.com - Mail');
+      await setSettings(DEFAULT_SETTINGS);
+      assert.equal(await tab.evaluate('document.title'), 'Inbox - ••••• - Mail');
+      await setSettings({ ...DEFAULT_SETTINGS, enabled: false });
+      assert.equal(await tab.evaluate('document.title'), 'Inbox - priya.sharma@example.com - Mail');
+    });
+
+    test('a page that keeps rewriting its title never shows the value, in the page or in Chrome', async () => {
+      await chrome.send('Target.setDiscoverTargets', { discover: true });
+      const browserTitles = [];
+      const stopListening = chrome.onEvent((message) => {
+        const info = message.params?.targetInfo;
+        if (message.method === 'Target.targetInfoChanged' && info.targetId === tab.targetId) browserTitles.push(info.title);
+      });
+      await openFixture('title.html?tick=1');
+      const pageTitles = [];
+      for (let sample = 0; sample < TITLE_SAMPLES; sample++) {
+        pageTitles.push(await tab.evaluate('document.title'));
+        await tab.settle(TITLE_SAMPLE_GAP_MS);
+      }
+      stopListening();
+      await chrome.send('Target.setDiscoverTargets', { discover: false });
+      assert.ok(new Set(pageTitles).size > 5, 'the page should have changed its title while sampling');
+      assert.deepEqual(pageTitles.filter((title) => title.includes('@')), []);
+      assert.ok(browserTitles.length > 0);
+      assert.deepEqual(browserTitles.filter((title) => title.includes('@')), []);
+    });
+  });
+
   describe('web components', () => {
     before(async () => {
       await openFixture('shadow.html');

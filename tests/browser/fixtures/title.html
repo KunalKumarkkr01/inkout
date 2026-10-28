@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Inbox - priya.sharma@example.com - Mail</title>
+    <script>
+      // ?tick=1 rewrites the title every 50 ms with an unread count, the way mail apps do.
+      if (new URLSearchParams(location.search).has('tick')) {
+        let unread = 0;
+        const timer = setInterval(() => {
+          unread += 1;
+          document.title = `(${unread}) Inbox - priya.sharma@example.com - Mail`;
+          if (unread === 40) clearInterval(timer);
+        }, 50);
+      }
+    </script>
+  </head>
+  <body>
+    <p>Title test page.</p>
+  </body>
+</html>
