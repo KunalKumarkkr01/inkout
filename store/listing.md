@@ -12,7 +12,7 @@ Hides emails, phone numbers, card numbers and API keys on web pages while you sh
 
 ## Category
 
-Productivity
+Privacy & Security (the dashboard lists sub-categories only; this one sits under "Make Chrome Yours")
 
 ## Language
 
@@ -22,35 +22,40 @@ English
 
 Share your screen, not your inbox.
 
-Inkout blurs sensitive text on every website, automatically, so it never reaches the people on your video call. Nothing to set up: it works from the moment it's installed.
+Inkout automatically blurs sensitive information across websites, helping you protect private data when sharing your screen during video calls, presentations, or demonstrations.
+
+No complicated setup required. Install Inkout and it starts protecting your browsing experience.
 
 What it hides:
-• Email addresses, including international ones
-• Phone numbers in international formats
-• Card numbers (checked, so random numbers are left alone)
-• API keys and tokens (GitHub, AWS, Stripe, OpenAI, Slack, Google and similar)
+• Email addresses, including international formats
+• Phone numbers, including international formats
+• Payment card numbers, with validation to reduce false positives
+• API keys, access tokens, and other authentication credentials
 • Bank account numbers in IBAN format
-• IP addresses (off by default)
-• Your own words and phrases, such as client or project names
+• IP addresses (disabled by default)
+• Custom words and phrases, such as client names, project names, or other confidential terms
 
 How it works:
-• Blur or a solid bar, in three strengths
-• Hidden values stay hidden when you select text
-• Also covers text fields, tab titles, frames, web components and SVG text
-• Works on apps that keep loading new content, like web mail
-• Presenter mode: notices when you start sharing in Meet, Teams, Zoom and other meeting sites on the web, and switches protection on
-• Alt+Shift+K blurs the whole page in an instant, for surprises
-• Pause a single tab when you need to see something; a badge shows it's paused
-• Choose the sites it runs on, or list sites to leave alone
-• A red OFF badge tells you before you share if protection is off (Alt+Shift+H)
+• Choose between blur and solid-bar masking styles, with three intensity levels
+• Prevent sensitive information from being revealed through text selection
+• Protect content in text fields, tab titles, frames, web components, and SVG text
+• Automatically detect and protect dynamically loaded content
+• Presenter Mode detects screen sharing started on web meeting sites and turns protection on automatically
+• Press Alt+Shift+K to blur the entire page instantly
+• Temporarily pause protection on individual tabs when needed, with a visible indicator
+• Configure which websites Inkout should protect or exclude
+• A red OFF indicator warns you when protection is turned off. Press Alt+Shift+H to turn protection on or off
 
 Private by design:
-• Inkout collects nothing and sends nothing anywhere. Page content never leaves your browser.
-• Settings are saved in Chrome; with Chrome sync on, Chrome copies them to your other browsers.
-• No account, no analytics, no ads.
+• No data collection or external transmission. Your page content stays inside your browser.
+• Settings are stored in Chrome. If Chrome Sync is enabled, your settings may sync across your devices.
+• No account required, no analytics, and no advertisements.
 • Free and open source: https://github.com/KunalKumarkkr01/inkout
 
-What it can't hide: Chrome's own interface (address bar, autofill), text inside images or canvas drawings, PDFs, and screen shares started from desktop apps.
+Limitations:
+Inkout cannot hide content in Chrome's own interface, including the address bar and autofill suggestions. It also cannot detect text embedded in images, canvas drawings, or PDFs. Screen sharing started from desktop apps is not detected.
+
+Inkout is designed to help reduce accidental exposure of sensitive information, but it is not a replacement for reviewing your screen before sharing.
 
 ## Single purpose
 

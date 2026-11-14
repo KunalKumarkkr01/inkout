@@ -1111,6 +1111,8 @@ describe('extension in a real browser', { skip: skipReason }, () => {
   describe('settings page', () => {
     const DESKTOP_WIDTH = 1280;
     const PHONE_WIDTH = 375;
+    const WIDE_WIDTH = 1900;
+    const SIDEBAR_MAX_WIDTH = 260;
     let fixture;
     let options;
 
@@ -1296,6 +1298,14 @@ describe('extension in a real browser', { skip: skipReason }, () => {
         assert.ok((await options.evaluate('document.documentElement.scrollWidth')) <= width, `scrolls sideways at ${width}px`);
       }
       await chrome.send('Emulation.clearDeviceMetricsOverride', {}, options.sessionId);
+    });
+
+    test('keeps the sidebar narrow in a wide window', async () => {
+      await chrome.send('Emulation.setDeviceMetricsOverride', { width: WIDE_WIDTH, height: 900, deviceScaleFactor: 1, mobile: false }, options.sessionId);
+      await options.settle(200);
+      const sidebarWidth = await options.evaluate(`document.querySelector('.sidebar').getBoundingClientRect().width`);
+      await chrome.send('Emulation.clearDeviceMetricsOverride', {}, options.sessionId);
+      assert.ok(sidebarWidth <= SIDEBAR_MAX_WIDTH, `sidebar is ${sidebarWidth}px wide at ${WIDE_WIDTH}px`);
     });
   });
 

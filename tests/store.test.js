@@ -39,6 +39,17 @@ test('the listing summary fits the store limit and matches the manifest', () => 
   assert.equal(summary, manifest.description);
 });
 
+// The store rejected 1.0.0 for "excessive keywords" over a list of brand names, and shows the
+// description as plain text, so Markdown marks would appear as typed.
+test('the listing description lists no brand names and uses no Markdown', () => {
+  const listing = fs.readFileSync(path.join(STORE, 'listing.md'), 'utf8');
+  const description = listing.match(/## Description\s+([\s\S]*?)\n## /)[1];
+  for (const brand of ['GitHub', 'AWS', 'Stripe', 'OpenAI', 'Slack', 'Google', 'Meet', 'Teams', 'Zoom']) {
+    assert.doesNotMatch(description, new RegExp(`\\b${brand}\\b`), brand);
+  }
+  assert.doesNotMatch(description, /^#|\*\*|^- /m);
+});
+
 test('the listing gives the privacy policy and support contact', () => {
   const listing = fs.readFileSync(path.join(STORE, 'listing.md'), 'utf8');
   assert.ok(listing.includes('https://kunalkumarkkr01.github.io/inkout/privacy.html'));

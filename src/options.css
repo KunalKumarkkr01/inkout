@@ -156,7 +156,11 @@ main {
   display: flex;
   flex-direction: column;
   gap: 24px;
-  max-width: 944px;
+}
+
+/* Capped here, not on main: a capped main leaves the spare width of a wide window to the sidebar. */
+main > * {
+  max-width: 880px;
 }
 
 .heading {

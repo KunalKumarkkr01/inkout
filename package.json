@@ -1,6 +1,6 @@
 {
   "name": "inkout",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "license": "MIT",
   "description": "Chrome extension that hides emails, phone numbers, card numbers and API keys on web pages while you share your screen.",

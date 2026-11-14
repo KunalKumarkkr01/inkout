@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Inkout",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Hides emails, phone numbers, card numbers and API keys on web pages while you share your screen.",
   "homepage_url": "https://kunalkumarkkr01.github.io/inkout/",
   "icons": {
